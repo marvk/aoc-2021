@@ -1,17 +1,23 @@
+object Day01 : Day<Int>() {
+    override fun part1(input: List<String>) =
+        input
+            .asSequence()
+            .map { it.toInt() }
+            .windowed(2)
+            .count { it.component1() < it.component2() }
+
+    override fun part2(input: List<String>) =
+        input
+            .asSequence()
+            .map { it.toInt() }
+            .windowed(3)
+            .map { it.sum() }
+            .windowed(2)
+            .count { it.component1() < it.component2() }
+
+    override val testResult: Int = 7
+}
+
 fun main() {
-    fun part1(input: List<String>): Int {
-        return input.size
-    }
-
-    fun part2(input: List<String>): Int {
-        return input.size
-    }
-
-    // test if implementation meets criteria from the description, like:
-    val testInput = readInput("Day01_test")
-    check(part1(testInput) == 1)
-
-    val input = readInput("Day01")
-    println(part1(input))
-    println(part2(input))
+    Day01.run()
 }
