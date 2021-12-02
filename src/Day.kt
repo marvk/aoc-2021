@@ -1,7 +1,7 @@
 abstract class Day<Result> {
     abstract fun part1(input: List<String>): Result
     abstract fun part2(input: List<String>): Result
-    abstract val testResult: Result
+    protected abstract val testResult: Result
     private val name = this::class.simpleName!!
 
     fun run() {
