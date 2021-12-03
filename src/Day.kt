@@ -35,11 +35,12 @@ abstract class Day<Result> {
             check(testOutput == testExpected) {
                 "Part $id test failed: Expected $testExpected but was $testOutput"
             }
-            println("Part $id test completed \u001B[32msuccessfully\u001B[0m")
+            println("Part $id test was \u001B[32msuccessful\u001B[0m")
         }
 
         fun runActual(id: Int) {
-            println("Part $id actual output: \u001B[34m${solve(input)}\u001B[0m")
+            val result = solve(input).toString()
+            println("Part $id output ${" ".repeat(12 - result.length)}\u001B[34m$result\u001B[0m")
         }
 
         fun run(id: Int) {
