@@ -1,20 +1,20 @@
 object Day02 : Day<Int>() {
-    override fun part1(input: List<String>) =
+    override val part1 = part(150) { input ->
         input
             .asSequence()
             .map(::parseToPosition)
             .reduce(Position::plus)
             .run { horizontal * depth }
+    }
 
-    override fun part2(input: List<String>) =
+
+    override val part2 = part(900) { input ->
         input
             .asSequence()
             .map(::parseToPosition)
             .fold(PositionAccumulator(), PositionAccumulator::plus)
             .run { horizontal * depth }
-
-    override val testResult: Int =
-        150
+    }
 
     private fun parseToPosition(line: String): Position =
         line
@@ -49,8 +49,4 @@ object Day02 : Day<Int>() {
                 aim + other.depth
             )
     }
-}
-
-fun main() {
-    Day02.run()
 }

@@ -1,5 +1,6 @@
 object Day03 : Day<Int>() {
-    override fun part1(input: List<String>): Int =
+
+    override val part1 = part(198) { input ->
         input
             .map(String::toCharArray)
             .fold(part1Accumulator(input)) { acc, strings ->
@@ -11,6 +12,7 @@ object Day03 : Day<Int>() {
             }
             .let { intArrayToBinaryNumbers(input.size, it) }
             .let { it.first * it.second }
+    }
 
 
     private fun intArrayToBinaryNumbers(size: Int, array: IntArray): Pair<Int, Int> {
@@ -38,7 +40,7 @@ object Day03 : Day<Int>() {
             ?.let { IntArray(it.length) }
             ?: throw IllegalArgumentException("Input must not be empty")
 
-    override fun part2(input: List<String>): Int {
+    override val part2 = part(230) { input ->
         val oxygen = input.toMutableList()
         val co2 = input.toMutableList()
 
@@ -52,7 +54,7 @@ object Day03 : Day<Int>() {
         check(oxygen.size == 1)
         check(co2.size == 1)
 
-        return oxygen.first().toInt(2) * co2.first().toInt(2)
+        return@part oxygen.first().toInt(2) * co2.first().toInt(2)
     }
 
     private fun Char.opposite() =
@@ -82,18 +84,8 @@ object Day03 : Day<Int>() {
             }
     }
 
-    override val testResult: Int =
-        198
-
-    override val testResult2: Int =
-        230
-}
-
-data class Rates(
-    val gamma: Int,
-    val epsilon: Int,
-)
-
-fun main() {
-    Day03.run()
+    private data class Rates(
+        val gamma: Int,
+        val epsilon: Int,
+    )
 }

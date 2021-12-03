@@ -1,30 +1,49 @@
+import java.io.File
+
 abstract class Day<Result> {
-    abstract fun part1(input: List<String>): Result
-    abstract fun part2(input: List<String>): Result
-    protected abstract val testResult: Result
-    protected open val testResult2: Result
-        get() = TODO("Not yet implemented")
+    protected abstract val part1: Part<Result>
+    protected abstract val part2: Part<Result>
+
     private val name = this::class.simpleName!!
+    private val testInput: List<String> by lazy { readInput("${name}_test") }
+    private val input: List<String> by lazy { readInput(name) }
+
+    fun runTests() {
+        part1.runTest(1)
+        part2.runTest(2)
+    }
+
+    fun runActual() {
+        part1.runActual()
+        part2.runActual()
+    }
 
     fun run() {
-        val testInput = readInput("${name}_test")
+        runTests()
+        runActual()
+    }
 
-        val testOutput = part1(testInput)
-        check(testOutput == testResult) {
-            "Expected $testResult but was $testOutput"
-        }
+    fun part(testExpected: Int, function: (input: List<String>) -> Result) =
+        Part(testInput, input, testExpected, function)
 
+    private fun readInput(name: String) = File("src", "$name.txt").readLines()
 
-        try {
-            val testOutput2 = part2(testInput)
-            check(testOutput2 == testResult2) {
-                "Expected $testResult2 but was $testOutput2"
+    class Part<Result> internal constructor(
+        private val testInput: List<String>,
+        private val input: List<String>,
+        private val testExpected: Int,
+        private val function: (input: List<String>) -> Result,
+    ) {
+        fun runTest(id: Int) {
+            val testOutput = function(testInput)
+            check(testOutput == testExpected) {
+                "Part$id test failed: Expected $testExpected but was $testOutput"
             }
-        } catch (_: NotImplementedError) {
+            println("Part$id test completed successfully")
         }
 
-        val input = readInput(name)
-        println(part1(input))
-        println(part2(input))
+        fun runActual() {
+            println(function(input))
+        }
     }
 }

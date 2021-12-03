@@ -1,12 +1,13 @@
 object Day01 : Day<Int>() {
-    override fun part1(input: List<String>) =
+    override val part1 = part(7) { input ->
         input
             .asSequence()
             .map { it.toInt() }
             .windowed(2)
             .count { it.component1() < it.component2() }
+    }
 
-    override fun part2(input: List<String>) =
+    override val part2 = part(5) { input ->
         input
             .asSequence()
             .map { it.toInt() }
@@ -14,10 +15,5 @@ object Day01 : Day<Int>() {
             .map { it.sum() }
             .windowed(2)
             .count { it.component1() < it.component2() }
-
-    override val testResult: Int = 7
-}
-
-fun main() {
-    Day01.run()
+    }
 }
