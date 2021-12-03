@@ -1,19 +1,20 @@
 object Day02 : Day<Int>() {
-    override val part1 = part(150) { input ->
-        input
-            .asSequence()
-            .map(::parseToPosition)
-            .reduce(Position::plus)
-            .run { horizontal * depth }
+    override val part1 = object : Part(150) {
+        override fun solve(input: List<String>) =
+            input
+                .asSequence()
+                .map(::parseToPosition)
+                .reduce(Position::plus)
+                .run { horizontal * depth }
     }
 
-
-    override val part2 = part(900) { input ->
-        input
-            .asSequence()
-            .map(::parseToPosition)
-            .fold(PositionAccumulator(), PositionAccumulator::plus)
-            .run { horizontal * depth }
+    override val part2 = object : Part(900) {
+        override fun solve(input: List<String>) =
+            input
+                .asSequence()
+                .map(::parseToPosition)
+                .fold(PositionAccumulator(), PositionAccumulator::plus)
+                .run { horizontal * depth }
     }
 
     private fun parseToPosition(line: String): Position =

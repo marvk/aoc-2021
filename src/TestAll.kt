@@ -1,3 +1,3 @@
 fun main() {
-    dayClasses().forEach { it.invoke("runTests") }
+    dayClasses().forEach { it.invoke("runTest") }
 }

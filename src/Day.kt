@@ -1,50 +1,50 @@
 import java.io.File
 
 abstract class Day<Result> {
-    protected abstract val part1: Part<Result>
-    protected abstract val part2: Part<Result>
+    protected abstract val part1: Part
+    protected abstract val part2: Part
 
     private val name = this::class.simpleName!!
     private val testInput: List<String> by lazy { readInput("${name}_test") }
     private val input: List<String> by lazy { readInput(name) }
 
-    fun runTests() {
+    fun runTest() {
         part1.runTest(1)
         part2.runTest(2)
     }
 
     fun runActual() {
-        part1.runActual()
-        part2.runActual()
+        part1.runActual(1)
+        part2.runActual(2)
     }
 
     fun run() {
-        runTests()
-        runActual()
+        part1.run(1)
+        part2.run(2)
     }
 
     private fun readInput(name: String) =
         File("src", "$name.txt").readLines()
 
-    protected fun part(testExpected: Int, function: (input: List<String>) -> Result) =
-        Part(testInput, input, testExpected, function)
 
-    protected class Part<Result> constructor(
-        private val testInput: List<String>,
-        private val input: List<String>,
-        private val testExpected: Int,
-        private val function: (input: List<String>) -> Result,
-    ) {
+    protected abstract inner class Part constructor(private val testExpected: Int) {
+        abstract fun solve(input: List<String>): Result
+
         fun runTest(id: Int) {
-            val testOutput = function(testInput)
+            val testOutput = solve(testInput)
             check(testOutput == testExpected) {
-                "Part$id test failed: Expected $testExpected but was $testOutput"
+                "Part $id test failed: Expected $testExpected but was $testOutput"
             }
-            println("Part$id test completed successfully")
+            println("Part $id test completed \u001B[32msuccessfully\u001B[0m")
         }
 
-        fun runActual() {
-            println(function(input))
+        fun runActual(id: Int) {
+            println("Part $id actual output: \u001B[34m${solve(input)}\u001B[0m")
+        }
+
+        fun run(id: Int) {
+            runTest(id)
+            runActual(id)
         }
     }
 }
