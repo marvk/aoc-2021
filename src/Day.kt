@@ -23,12 +23,13 @@ abstract class Day<Result> {
         runActual()
     }
 
-    fun part(testExpected: Int, function: (input: List<String>) -> Result) =
+    private fun readInput(name: String) =
+        File("src", "$name.txt").readLines()
+
+    protected fun part(testExpected: Int, function: (input: List<String>) -> Result) =
         Part(testInput, input, testExpected, function)
 
-    private fun readInput(name: String) = File("src", "$name.txt").readLines()
-
-    class Part<Result> internal constructor(
+    protected class Part<Result> constructor(
         private val testInput: List<String>,
         private val input: List<String>,
         private val testExpected: Int,

@@ -2,36 +2,22 @@ object Day03 : Day<Int>() {
 
     override val part1 = part(198) { input ->
         input
-            .map(String::toCharArray)
-            .fold(part1Accumulator(input)) { acc, strings ->
+            .fold(part1Accumulator(input)) { acc, row ->
                 acc.apply {
-                    strings.forEachIndexed { index, s ->
+                    row.forEachIndexed { index, s ->
                         this[index] += if (s == '1') 1 else 0
                     }
                 }
             }
-            .let { intArrayToBinaryNumbers(input.size, it) }
-            .let { it.first * it.second }
-    }
-
-
-    private fun intArrayToBinaryNumbers(size: Int, array: IntArray): Pair<Int, Int> {
-        var first = 0
-        var second = 0
-
-        array.reversedArray().forEachIndexed { index, i ->
-            val currentBit = if (i > (size / 2)) 1 else 0
-            first = first.or(currentBit.shl(index))
-            second = second.or(currentBit.xor(1).shl(index))
-        }
-
-        array
             .reversedArray()
-            .foldIndexed(Rates(0, 0)) { index, acc, i ->
-                Rates(acc.gamma, acc.epsilon)
+            .foldIndexed(Rates(0, 0)) { index, rates, ones ->
+                val currentBit = if (ones > (input.size / 2)) 1 else 0
+                Rates(
+                    rates.gamma.or(currentBit.shl(index)),
+                    rates.epsilon.or(currentBit.xor(1).shl(index))
+                )
             }
-
-        return Pair(first, second)
+            .let { it.gamma * it.epsilon }
     }
 
     private fun part1Accumulator(input: List<String>) =
@@ -44,15 +30,10 @@ object Day03 : Day<Int>() {
         val oxygen = input.toMutableList()
         val co2 = input.toMutableList()
 
-        check(input.isNotEmpty())
-
-        for (i in 0 until input.first().length) {
-            cull(i, oxygen, '1')
-            cull(i, co2, '0')
+        for (index in 0 until input.first().length) {
+            cull(index, oxygen, '1')
+            cull(index, co2, '0')
         }
-
-        check(oxygen.size == 1)
-        check(co2.size == 1)
 
         return@part oxygen.first().toInt(2) * co2.first().toInt(2)
     }
@@ -64,7 +45,7 @@ object Day03 : Day<Int>() {
             else -> throw IllegalArgumentException()
         }
 
-    private fun cull(index: Int, diagnostics: MutableList<String>, keepCharIfOnesDominate: Char) {
+    private fun cull(index: Int, diagnostics: MutableList<String>, charToKeepIfOnesDominate: Char) {
         if (diagnostics.size <= 1) {
             return
         }
@@ -74,8 +55,8 @@ object Day03 : Day<Int>() {
             .count { it == '1' }
 
         val keepChar = when {
-            ones * 2 >= diagnostics.size -> keepCharIfOnesDominate
-            else -> keepCharIfOnesDominate.opposite()
+            ones * 2 >= diagnostics.size -> charToKeepIfOnesDominate
+            else -> charToKeepIfOnesDominate.opposite()
         }
 
         diagnostics
