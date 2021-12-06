@@ -27,7 +27,7 @@ abstract class Day<Result> {
         File("src", "$name.txt").readLines()
 
 
-    protected abstract inner class Part constructor(private val testExpected: Int) {
+    protected abstract inner class Part constructor(private val testExpected: Result) {
         abstract fun solve(input: List<String>): Result
 
         fun runTest(id: Int) {
@@ -40,7 +40,7 @@ abstract class Day<Result> {
 
         fun runActual(id: Int) {
             val result = solve(input).toString()
-            println("Part $id output ${" ".repeat(12 - result.length)}\u001B[34m$result\u001B[0m")
+            println("Part $id output ${" ".repeat(0.coerceAtLeast(12 - result.length))}\u001B[34m$result\u001B[0m")
         }
 
         fun run(id: Int) {
