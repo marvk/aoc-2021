@@ -1,8 +1,7 @@
 object Day13 : Day() {
     override val part1 = object : Part<Int>(17) {
-        override fun solve(input: List<String>): Int {
-            return Paper.parse(input).foldOnce().points.size
-        }
+        override fun solve(input: List<String>) =
+            Paper.parse(input).foldOnce().dots.size
     }
 
     override val part2 = object : Part<String>("""
@@ -12,96 +11,87 @@ object Day13 : Day() {
     #...#
     #####
     """.trimIndent()) {
-        override fun solve(input: List<String>): String {
-            return Paper.parse(input).foldAll().toString()
-        }
+        override fun solve(input: List<String>) =
+            Paper.parse(input).foldAll().stringRepresentation()
     }
 
     data class Paper(
-        val points: Set<Point>,
+        val dots: Set<Dot>,
         val foldInstructions: List<FoldInstruction>,
     ) {
         companion object {
-            fun parse(input: List<String>): Paper {
-                val (rawFoldInstructions, rawDots) =
-                    input
-                        .filter(String::isNotEmpty)
-                        .partition { it.contains("fold along") }
+            fun parse(input: List<String>) =
+                splitIntoSections(input)
+                    .let { parseDots(it.second) to parseFoldInstructions(it.first) }
+                    .let { Paper(it.first, it.second) }
 
+            private fun splitIntoSections(input: List<String>) =
+                input
+                    .filter(String::isNotEmpty)
+                    .partition { it.contains("fold along") }
 
-                val foldInstructions =
-                    rawFoldInstructions
-                        .map { it.split(" ") }
-                        .map(List<String>::component3)
-                        .map { it.split("=") }
-                        .map { (axis, coordinate) ->
-                            FoldInstruction(coordinate.toInt(), FoldInstruction.Axis.parse(axis))
-                        }
+            private fun parseDots(input: List<String>) =
+                input
+                    .map { it.split(",") }
+                    .map { it.map(String::toInt) }
+                    .map { (x, y) -> Dot(x, y) }
+                    .toSet()
 
-                val points =
-                    rawDots
-                        .map { it.split(",") }
-                        .map { it.map(String::toInt) }
-                        .map { (x, y) -> Point(x, y) }
-                        .toSet()
-
-                return Paper(points, foldInstructions)
-            }
+            private fun parseFoldInstructions(input: List<String>) =
+                input
+                    .map { it.split(" ") }
+                    .map(List<String>::component3)
+                    .map { it.split("=") }
+                    .map { (axis, coordinate) ->
+                        FoldInstruction(coordinate.toInt(), FoldInstruction.Axis.parse(axis))
+                    }
         }
 
-        fun foldAll(): Paper {
-            var result = this
+        fun foldAll() =
+            generateSequence(this, Paper::foldOnce)
+                .takeWhile { it.foldInstructions.isNotEmpty() }
+                .last()
+                .foldOnce()
 
-            while (result.foldInstructions.isNotEmpty()) {
-                result = result.foldOnce()
-            }
-
-            return result
-        }
-
-        fun foldOnce(): Paper {
-            val foldInstruction = foldInstructions.first()
-
-            val pointsToFold = foldInstruction.mirror(points)
-
-            val (toFold, remainder) = pointsToFold.partition { it.x >= foldInstruction.coordinate }
-
-            return Paper(
-                toFold.map { Point(foldInstruction.coordinate - (it.x - foldInstruction.coordinate), it.y) }
-                    .plus(remainder).toSet().let(foldInstruction::mirror),
+        fun foldOnce() =
+            Paper(
+                foldInstructions.first().fold(dots),
                 foldInstructions.drop(1)
             )
-        }
 
-        override fun toString(): String {
-            val maxX = points.maxOf(Point::x)
-            val maxY = points.maxOf(Point::y)
-
-            val chars = Array(maxY + 1) {
-                CharArray(maxX + 1) {
+        fun stringRepresentation(): String =
+            Array(dots.maxOf(Dot::y) + 1) {
+                CharArray(dots.maxOf(Dot::x) + 1) {
                     '.'
                 }
+            }.apply {
+                dots.map { Dot(it.x, it.y) }.forEach {
+                    this[it.y][it.x] = '#'
+                }
+            }.joinToString("\n") {
+                it.joinToString("")
             }
-
-            points.map { Point(it.x, it.y) }.forEach {
-                chars[it.y][it.x] = '#'
-            }
-
-            return chars.joinToString("\n") { it.joinToString("") }
-        }
     }
 
-    private fun mirrorDiagonally(points: Set<Point>) = points.map { (x, y) -> Point(y, x) }.toSet()
+    private fun mirrorDiagonally(dots: Iterable<Dot>) =
+        dots.map { (x, y) -> Dot(y, x) }.toSet()
 
-    data class Point(
-        val x: Int,
-        val y: Int,
-    )
+    data class Dot(val x: Int, val y: Int)
 
     data class FoldInstruction(val coordinate: Int, val axis: Axis) {
-        fun mirror(points: Set<Point>): Set<Point> {
-            return if (axis == Axis.X) points else mirrorDiagonally(points)
-        }
+        fun fold(dots: Set<Dot>) =
+            mirrorIfRequired(dots)
+                .partition { it.x >= coordinate }
+                .let { (toFold, remainder) ->
+                    toFold
+                        .map { Dot(coordinate - (it.x - coordinate), it.y) }
+                        .plus(remainder)
+                }
+                .let(::mirrorIfRequired)
+                .toSet()
+
+        private fun mirrorIfRequired(dots: Iterable<Dot>) =
+            if (axis == Axis.X) dots else mirrorDiagonally(dots)
 
         enum class Axis {
             X, Y;
