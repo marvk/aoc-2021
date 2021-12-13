@@ -1,12 +1,12 @@
 import kotlin.math.sign
 
-object Day05 : Day<Int>() {
-    override val part1 = object : Part(5) {
+object Day05 : Day() {
+    override val part1 = object : Part<Int>(5) {
         override fun solve(input: List<String>) =
             solve(input, Line::straightPoints)
     }
 
-    override val part2 = object : Part(12) {
+    override val part2 = object : Part<Int>(12) {
         override fun solve(input: List<String>) =
             solve(input, Line::allPoints)
     }

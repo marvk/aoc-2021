@@ -1,7 +1,7 @@
-object Day04 : Day<Int>() {
+object Day04 : Day() {
     private val wonRowOrColumn = List(5) { -1 }
 
-    override val part1 = object : Part(4512) {
+    override val part1 = object : Part<Int>(4512) {
         override fun solve(input: List<String>): Int {
             val (numbers, bingoCards) = splitAndParseInput(input)
 
@@ -19,7 +19,7 @@ object Day04 : Day<Int>() {
         }
     }
 
-    override val part2 = object : Part(1924) {
+    override val part2 = object : Part<Int>(1924) {
         override fun solve(input: List<String>): Int {
             val (numbers, bingoCards) = splitAndParseInput(input)
 

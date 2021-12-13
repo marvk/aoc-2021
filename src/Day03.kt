@@ -1,5 +1,5 @@
-object Day03 : Day<Int>() {
-    override val part1 = object : Part(198) {
+object Day03 : Day() {
+    override val part1 = object : Part<Int>(198) {
         override fun solve(input: List<String>) =
             input
                 .fold(input.first().length.let(::IntArray)) { acc, row ->
@@ -20,7 +20,7 @@ object Day03 : Day<Int>() {
                 .let { it.gamma * it.epsilon }
     }
 
-    override val part2 = object : Part(230) {
+    override val part2 = object : Part<Int>(230) {
         override fun solve(input: List<String>): Int {
             val oxygen = input.toMutableList()
             val co2 = input.toMutableList()

@@ -1,11 +1,11 @@
-object Day13 : Day<Int>() {
-    override val part1 = object : Part(17) {
+object Day13 : Day() {
+    override val part1 = object : Part<Int>(17) {
         override fun solve(input: List<String>): Int {
             return Paper.parse(input).foldOnce().points.size
         }
     }
 
-    override val part2 = object : Part(16) {
+    override val part2 = object : Part<Int>(16) {
         override fun solve(input: List<String>): Int {
             return Paper.parse(input).foldAll().points.size
         }

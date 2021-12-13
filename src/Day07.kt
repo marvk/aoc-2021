@@ -1,12 +1,12 @@
 import kotlin.math.absoluteValue
 
-object Day07 : Day<Int>() {
-    override val part1 = object : Part(37) {
+object Day07 : Day() {
+    override val part1 = object : Part<Int>(37) {
         override fun solve(input: List<String>) =
             cheapestOutcome(input)
     }
 
-    override val part2 = object : Part(168) {
+    override val part2 = object : Part<Int>(168) {
         override fun solve(input: List<String>) =
             cheapestOutcome(input, ::triangularNumber)
 

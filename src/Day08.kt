@@ -1,11 +1,11 @@
-object Day08 : Day<Int>() {
-    override val part1 = object : Part(26) {
+object Day08 : Day() {
+    override val part1 = object : Part<Int>(26) {
         override fun solve(input: List<String>) =
             parseRows(input)
                 .sumOf(InputRow::countKnownValuesInOutput)
     }
 
-    override val part2 = object : Part(61229) {
+    override val part2 = object : Part<Int>(61229) {
         override fun solve(input: List<String>) =
             parseRows(input)
                 .sumOf(InputRow::decodeOutput)

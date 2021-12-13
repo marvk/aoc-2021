@@ -1,12 +1,12 @@
-object Day09 : Day<Int>() {
-    override val part1 = object : Part(15) {
+object Day09 : Day() {
+    override val part1 = object : Part<Int>(15) {
         override fun solve(input: List<String>) = HeightMap
             .parse(input)
             .apply(HeightMap::calculateRiskLevel)
             .sum()
     }
 
-    override val part2 = object : Part(1134) {
+    override val part2 = object : Part<Int>(1134) {
         override fun solve(input: List<String>) = HeightMap
             .parse(input)
             .apply(HeightMap::calculateBasinSize)

@@ -1,5 +1,5 @@
-object Day10 : Day<Long>() {
-    override val part1 = object : Part(26397L) {
+object Day10 : Day() {
+    override val part1 = object : Part<Long>(26397L) {
         override fun solve(input: List<String>) =
             input
                 .asSequence()
@@ -8,7 +8,7 @@ object Day10 : Day<Long>() {
                 .sumOf(Result.Illegal::points)
     }
 
-    override val part2 = object : Part(288957L) {
+    override val part2 = object : Part<Long>(288957L) {
         override fun solve(input: List<String>) =
             input
                 .asSequence()

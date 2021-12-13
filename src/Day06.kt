@@ -1,10 +1,10 @@
-object Day06 : Day<Long>() {
-    override val part1 = object : Part(5934L) {
+object Day06 : Day() {
+    override val part1 = object : Part<Long>(5934L) {
         override fun solve(input: List<String>): Long =
             solve(input, 80)
     }
 
-    override val part2 = object : Part(26984457539L) {
+    override val part2 = object : Part<Long>(26984457539L) {
         override fun solve(input: List<String>): Long =
             solve(input, 256)
     }

@@ -1,5 +1,5 @@
-object Day02 : Day<Int>() {
-    override val part1 = object : Part(150) {
+object Day02 : Day() {
+    override val part1 = object : Part<Int>(150) {
         override fun solve(input: List<String>) =
             input
                 .asSequence()
@@ -8,7 +8,7 @@ object Day02 : Day<Int>() {
                 .run { horizontal * depth }
     }
 
-    override val part2 = object : Part(900) {
+    override val part2 = object : Part<Int>(900) {
         override fun solve(input: List<String>) =
             input
                 .asSequence()

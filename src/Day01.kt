@@ -1,5 +1,5 @@
-object Day01 : Day<Int>() {
-    override val part1 = object : Part(7) {
+object Day01 : Day() {
+    override val part1 = object : Part<Int>(7) {
         override fun solve(input: List<String>) =
             input
                 .asSequence()
@@ -8,7 +8,7 @@ object Day01 : Day<Int>() {
                 .count { it.component1() < it.component2() }
     }
 
-    override val part2 = object : Part(5) {
+    override val part2 = object : Part<Int>(5) {
         override fun solve(input: List<String>) =
             input
                 .asSequence()

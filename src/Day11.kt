@@ -1,5 +1,5 @@
-object Day11 : Day<Int>() {
-    override val part1 = object : Part(1656) {
+object Day11 : Day() {
+    override val part1 = object : Part<Int>(1656) {
         override fun solve(input: List<String>) =
             Cavern
                 .parse(input)
@@ -9,7 +9,7 @@ object Day11 : Day<Int>() {
                 }
     }
 
-    override val part2 = object : Part(195) {
+    override val part2 = object : Part<Int>(195) {
         override fun solve(input: List<String>) =
             Cavern
                 .parse(input)
