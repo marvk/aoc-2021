@@ -39,7 +39,7 @@ abstract class Day {
         }
 
         fun runActual(id: Int) {
-            val result = solve(input).toString()
+            val result = solve(input).toString().let { if (it.lines().size > 1) "\n" + it else it }
             println("Part $id output ${" ".repeat(0.coerceAtLeast(12 - result.length))}\u001B[34m$result\u001B[0m")
         }
 

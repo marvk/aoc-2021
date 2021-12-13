@@ -5,9 +5,15 @@ object Day13 : Day() {
         }
     }
 
-    override val part2 = object : Part<Int>(16) {
-        override fun solve(input: List<String>): Int {
-            return Paper.parse(input).foldAll().points.size
+    override val part2 = object : Part<String>("""
+    #####
+    #...#
+    #...#
+    #...#
+    #####
+    """.trimIndent()) {
+        override fun solve(input: List<String>): String {
+            return Paper.parse(input).foldAll().toString()
         }
     }
 
@@ -81,7 +87,7 @@ object Day13 : Day() {
                 chars[it.y][it.x] = '#'
             }
 
-            return chars.joinToString("\n") { it.joinToString("") }.let { "\n$it\n" }
+            return chars.joinToString("\n") { it.joinToString("") }
         }
     }
 
