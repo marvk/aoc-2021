@@ -1,14 +1,12 @@
 object Day12 : Day() {
     override val part1 = object : Part<Int>(226) {
-        override fun solve(input: List<String>): Int {
-            return Graph.parse(input).pathsThatVisitSmallCavesAtMostOnce().size
-        }
+        override fun solve(input: List<String>) =
+            Graph.parse(input).pathsThatVisitSmallCavesAtMostOnce().size
     }
 
     override val part2 = object : Part<Int>(3509) {
-        override fun solve(input: List<String>): Int {
-            return Graph.parse(input).pathsThatVisitOneSmallCaveAtMoseTwiceElseAtMostOnce().size
-        }
+        override fun solve(input: List<String>) =
+            Graph.parse(input).pathsThatVisitOneSmallCaveAtMoseTwiceElseAtMostOnce().size
     }
 
     private data class Path(val nodes: List<Node>)
