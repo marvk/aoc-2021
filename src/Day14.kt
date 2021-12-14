@@ -1,76 +1,109 @@
 object Day14 : Day() {
     override val part1 = object : Part<Long>(1588L) {
         override fun solve(input: List<String>) =
-            input.let(PolymerInstructions::parse).applyRulesNTimes(10).part1Output()
+            input.let(LightweightPolymerInstructions::parse).applyRulesNTimes(10).result()
     }
 
     override val part2 = object : Part<Long>(2188189693529L) {
-        override fun solve(input: List<String>): Long {
-            return input.let(PolymerInstructions::parse).applyRulesNTimes(40).part1Output()
-        }
+        override fun solve(input: List<String>) =
+            input.let(LightweightPolymerInstructions::parse).applyRulesNTimes(40).result()
     }
 
-    private data class PolymerInstructions(
-        val template: String,
-        val insertionRules: List<InsertionRule>,
+    private data class LightweightPolymerInstructions(
+        private val polymers: Map<Rule, Long>,
+        private val endsIn: Char,
+        private val rules: Map<Rule, List<Rule>>,
     ) {
-        private val insertionRulesByPair = insertionRules.associateBy(InsertionRule::pair)
-
-        fun part1Output() =
-            template
-                .groupingBy { it }
-                .eachCount()
-                .values
-                .let { values ->
-                    values.maxOf { it } - values.minOf { it }
+        fun result() =
+            polymers
+                .entries
+                .map { it.key.pair.first() to it.value }
+                .plus(endsIn to 1L)
+                .groupingBy { it.first }
+                .fold(0L) { accumulator, charToCount ->
+                    accumulator + charToCount.second
                 }
-                .toLong()
+                .values
+                .run {
+                    maxOf { it } - minOf { it }
+                }
+
 
         fun applyRulesNTimes(n: Int) =
-            generateSequence(this, PolymerInstructions::applyRules)
-                .onEachIndexed { index, _ -> println(index) }
+            generateSequence(this, LightweightPolymerInstructions::applyRules)
                 .take(n + 1)
                 .last()
 
-        fun applyRules(): PolymerInstructions {
-            return PolymerInstructions(
-                template
-                    .windowed(2)
-                    .joinToString("", postfix = template.last().toString()) {
-                        insertionRulesByPair[it]!!.result
-                    },
-                insertionRules
-            )
-        }
+        fun applyRules(): LightweightPolymerInstructions =
+            polymers
+                .flatMap(::resolveEntry)
+                .groupingBy(Pair<Rule, Long>::first)
+                .fold(0L) { accumulator, ruleToCount ->
+                    accumulator + ruleToCount.second
+                }
+                .let {
+                    LightweightPolymerInstructions(it, endsIn, rules)
+                }
+
+        private fun resolveEntry(entry: Map.Entry<Rule, Long>) =
+            rules[entry.key]!!.map { it to entry.value }
 
         companion object {
             fun parse(input: List<String>) =
+                partitionInput(input)
+                    .let { (template, rules) ->
+                        LightweightPolymerInstructions(
+                            templateToRules(template, rules),
+                            template.last(),
+                            ruleResultsByRule(rules)
+                        )
+                    }
+
+            private fun ruleResultsByRule(rules: Map<String, Rule>) =
+                rules.run {
+                    values.associateWith { rule ->
+                        rule.results.map {
+                            this[it]!!
+                        }
+                    }
+                }
+
+            private fun templateToRules(template: String, rules: Map<String, Rule>) =
+                template
+                    .windowed(2)
+                    .map {
+                        rules[it]!!
+                    }
+                    .groupingBy { it }
+                    .eachCount()
+                    .mapValues { it.value.toLong() }
+                    .toMap()
+
+            private fun partitionInput(input: List<String>) =
                 input
                     .filter(String::isNotEmpty)
                     .partition { it.contains("->") }
-                    .let { (insertionRulesString, template) ->
-                        PolymerInstructions(
-                            template.single(),
-                            insertionRulesString.map(InsertionRule::parse)
-                        )
+                    .let {
+                        it.second.single() to it.first.map(Rule::parse).associateBy(Rule::pair)
                     }
         }
     }
 
-    private data class InsertionRule(
+    private data class Rule(
         val pair: String,
-        val inserted: String,
+        val results: List<String>,
     ) {
-        val result = pair[0] + inserted
-
         companion object {
             fun parse(input: String) =
                 input
                     .split(" -> ")
                     .let { (pair, inserted) ->
-                        InsertionRule(
+                        Rule(
                             pair,
-                            inserted
+                            listOf(
+                                pair[0] + inserted,
+                                inserted + pair[1]
+                            )
                         )
                     }
         }
