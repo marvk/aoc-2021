@@ -42,8 +42,15 @@ abstract class Day {
 
         fun runActual(id: Int) {
             runTimed {
-                val result = solve(input).toString().let { if (it.lines().size > 1) "\n" + it else it }
-                println("Part $id output ${" ".repeat(0.coerceAtLeast(12 - result.length))}${result.colored(34)}\t${stopAndFormat()}")
+                val rawResult = solve(input).toString()
+                val multiline = rawResult.lines().size > 1
+                val result = rawResult.colored(34)
+                val resultAndTime = if (multiline) {
+                    " ".repeat(12) + "\t${stopAndFormat()}\n$result"
+                } else {
+                    " ".repeat(0.coerceAtLeast(12 - rawResult.length)) + "${result}\t${stopAndFormat()}"
+                }
+                println("Part $id output $resultAndTime")
             }
         }
 
