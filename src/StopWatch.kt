@@ -1,4 +1,5 @@
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.nanoseconds
 
 class StopWatch {
     var startTime: Long? = null
@@ -23,24 +24,21 @@ class StopWatch {
             throw IllegalStateException()
         }
         if (duration == null) {
-            duration = Duration.ofNanos(now() - startTime!!)
+            duration = (now() - startTime!!).nanoseconds
         }
         return duration!!
     }
 
     companion object {
-        fun runTimed(block: Scope.() -> Unit) {
-            Scope(StopWatch().apply(StopWatch::start)).block()
-        }
+        fun runTimed(block: Scope.() -> Unit) =
+            Scope(StopWatch().apply(StopWatch::start)).apply(block).run(Scope::stopIfNotStopped)
     }
 
     class Scope(private val stopWatch: StopWatch) {
-        fun stop(): Duration {
-            return stopWatch.stop()
-        }
+        internal fun stopIfNotStopped() = stopWatch.duration ?: stop()
 
-        fun stopAndFormat(): String {
-            return stop().toString().colored(30)
-        }
+        fun stop() = stopWatch.stop()
+
+        fun stopAndFormat() = stop().toString().colored(30)
     }
 }

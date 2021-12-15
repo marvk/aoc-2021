@@ -19,4 +19,5 @@ tasks {
 }
 dependencies {
     implementation(kotlin("reflect"))
+    implementation("org.jfree:jfreechart:1.5.3")
 }

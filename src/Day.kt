@@ -2,8 +2,8 @@ import StopWatch.Companion.runTimed
 import java.io.File
 
 abstract class Day {
-    protected abstract val part1: Part<*>
-    protected abstract val part2: Part<*>
+    abstract val part1: Part<*>
+    abstract val part2: Part<*>
 
     private val name = this::class.simpleName!!
     private val testInput: List<String> by lazy { readInput("${name}_test") }
@@ -27,7 +27,7 @@ abstract class Day {
     private fun readInput(name: String) =
         File("src", "$name.txt").readLines()
 
-    protected abstract inner class Part<Result> constructor(private val testExpected: Result) {
+    abstract inner class Part<Result> constructor(private val testExpected: Result) {
         abstract fun solve(input: List<String>): Result
 
         fun runTest(id: Int) {
