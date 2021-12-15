@@ -14,7 +14,7 @@ object Day15 : Day() {
         override fun solve(input: List<String>) =
             input
                 .let { Graph.parse(it, expandBy = 5) }
-                .shortestPath()
+                .run(Graph::shortestPath)
                 .drop(1)
                 .sumOf(Node::value)
     }
@@ -37,7 +37,7 @@ object Day15 : Day() {
             val fScore = gScore.toMutableMap().apply { put(start, h(start)) }
 
             while (openSet.isNotEmpty()) {
-                val current = openSet.asSequence().sortedBy { fScore[it] }.first()
+                val current = openSet.minByOrNull { fScore[it]!! }!!
 
                 if (current == end) {
                     return reconstructPath(cameFrom, current)
