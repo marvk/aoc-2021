@@ -28,12 +28,12 @@ object Day15 : Day() {
         private val end = get(width - 1, height - 1)!!
 
         fun shortestPath(): List<Node> {
-            fun h(node: Node) = node.distanceToEnd()
-            fun d(node1: Node, node2: Node) = node1.value + node2.value
+            fun h(node: Node) = node.distanceToEnd().toLong()
+            fun d(node1: Node, node2: Node)= (node1.value + node2.value).toLong()
 
             val openSet = mutableSetOf(start)
             val cameFrom = mutableMapOf<Node, Node>()
-            val gScore = map.flatten().associateWith { Int.MAX_VALUE }.toMutableMap().apply { put(start, 0) }
+            val gScore = map.flatten().associateWith { Long.MAX_VALUE }.toMutableMap().apply { put(start, 0L) }
             val fScore = gScore.toMutableMap().apply { put(start, h(start)) }
 
             while (openSet.isNotEmpty()) {
