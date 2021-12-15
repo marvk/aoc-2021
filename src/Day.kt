@@ -1,3 +1,4 @@
+import StopWatch.Companion.runTimed
 import java.io.File
 
 abstract class Day {
@@ -26,21 +27,24 @@ abstract class Day {
     private fun readInput(name: String) =
         File("src", "$name.txt").readLines()
 
-
     protected abstract inner class Part<Result> constructor(private val testExpected: Result) {
         abstract fun solve(input: List<String>): Result
 
         fun runTest(id: Int) {
-            val testOutput = solve(testInput)
-            check(testOutput == testExpected) {
-                "Part $id test failed: Expected $testExpected but was $testOutput"
+            runTimed {
+                val testOutput = solve(testInput)
+                check(testOutput == testExpected) {
+                    "Part $id test failed: Expected $testExpected but was $testOutput\t${stopAndFormat()}"
+                }
+                println("Part $id test was ${"successful".colored(32)}\t${stopAndFormat()}")
             }
-            println("Part $id test was \u001B[32msuccessful\u001B[0m")
         }
 
         fun runActual(id: Int) {
-            val result = solve(input).toString().let { if (it.lines().size > 1) "\n" + it else it }
-            println("Part $id output ${" ".repeat(0.coerceAtLeast(12 - result.length))}\u001B[34m$result\u001B[0m")
+            runTimed {
+                val result = solve(input).toString().let { if (it.lines().size > 1) "\n" + it else it }
+                println("Part $id output ${" ".repeat(0.coerceAtLeast(12 - result.length))}${result.colored(34)}\t${stopAndFormat()}")
+            }
         }
 
         fun run(id: Int) {
