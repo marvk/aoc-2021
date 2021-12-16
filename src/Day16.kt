@@ -3,7 +3,7 @@ object Day16 : Day() {
         override fun solve(input: List<String>) =
             Packet.parse(input.single()).versionSum()
 
-        fun Packet.versionSum(): Int =
+        private fun Packet.versionSum(): Int =
             when (this) {
                 is Packet.Composite -> version + packets.sumOf { it.versionSum() }
                 is Packet.Literal -> version
@@ -12,10 +12,10 @@ object Day16 : Day() {
 
     override val part2 = object : Part<Long>(1L) {
         override fun solve(input: List<String>) =
-            Packet.parse(input.single()).also(::println).value
+            Packet.parse(input.single()).value
     }
 
-    private sealed interface Packet {
+    sealed interface Packet {
         val version: Int
         val typeId: Int
         val length: Int
@@ -34,7 +34,7 @@ object Day16 : Day() {
             val numBitsParsed: Int,
             override val packets: List<Packet>,
         ) : Composite() {
-            override val length = metaLength + 16 + packets.sumOf(Packet::length)
+            override val length = META_LENGTH + 16 + packets.sumOf(Packet::length)
 
             override fun toString(): String {
                 return "BitsPackage__(version=$version, typeId=$typeId, bits=$numBitsParsed, operator=$operator)=$value\n" +
@@ -50,7 +50,7 @@ object Day16 : Day() {
             val numPacketsParsed: Int,
             override val packets: List<Packet>,
         ) : Composite() {
-            override val length = metaLength + 12 + packets.sumOf(Packet::length)
+            override val length = META_LENGTH + 12 + packets.sumOf(Packet::length)
 
             override fun toString(): String {
                 return "PacketsPacket(version=$version, typeId=$typeId, packets=$numPacketsParsed, operator=$operator)=$value\n" +
@@ -65,16 +65,14 @@ object Day16 : Day() {
             override val typeId: Int,
             val chunks: List<Chunk>,
         ) : Packet {
-            private val numDataChunks = chunks.count { it is Chunk.Data }
-
-            override val length = metaLength + chunks.sumOf(Chunk::length)
+            override val length = META_LENGTH + chunks.sumOf(Chunk::length)
 
             override val value by lazy {
                 chunks
-                    .filterIsInstance<Chunk.Data>()
                     .mapIndexed { index, data ->
-                        data.value.shl((numDataChunks - 1 - index) * 4)
-                    }.sum()
+                        data.value.shl((chunks.size - 1 - index) * 4)
+                    }
+                    .sum()
             }
 
             override fun toString(): String {
@@ -86,28 +84,20 @@ object Day16 : Day() {
         }
 
         companion object {
-            private const val metaLength = 3 + 3
-            private const val bitLengthBits = 15
-            private const val packetLengthBits = 11
+            private const val META_LENGTH = 3 + 3
+            private const val BIT_NUMBER_BITS = 15
+            private const val PACKET_NUMBER_BITS = 11
 
-            fun parse(input: String): Packet {
-                return parsePacket(decodeHexadecimal(input))
-            }
+            fun parse(input: String) =
+                parsePacket(decodeHexToBin(input))
 
             private fun parsePacket(representation: CharSequence): Packet {
                 val input = StringBuilder(representation)
-
                 val version = input.removeN(3).toInt(2)
-                val typeId = input.removeN(3).toInt(2)
 
-                if (typeId == 4) {
-                    return Literal(
-                        version,
-                        typeId,
-                        literalChunks(input),
-                    )
-                } else {
-                    return when (input.removeN(1)) {
+                return when (val typeId = input.removeN(3).toInt(2)) {
+                    4 -> Literal(version, typeId, parseLiteralPacket(input))
+                    else -> when (input.removeN(1)) {
                         "0" -> parseBitPacket(input).let { (expectedNumberOfBits, packets) ->
                             Bits(version, typeId, expectedNumberOfBits, packets)
                         }
@@ -119,27 +109,34 @@ object Day16 : Day() {
                 }
             }
 
-            private fun parsePacketsPacket(input: CharSequence): Pair<Int, MutableList<Packet>> {
-                val numberOfPackets = input.substring(0, packetLengthBits).toInt(2)
-                val packetsInput = StringBuilder(input.substring(packetLengthBits))
+            private fun parseLiteralPacket(input: CharSequence): List<Chunk> =
+                buildList {
+                    for (s in input.chunked(5)) {
+                        add(Chunk(s))
 
-                return mutableListOf<Packet>().apply {
-                    for (i in 0 until numberOfPackets) {
-                        val parsePacket = parsePacket(packetsInput)
-                        add(parsePacket)
-
-                        packetsInput.removeN(parsePacket.length)
+                        if (s.startsWith("0")) {
+                            break
+                        }
                     }
-                }.let {
-                    Pair(numberOfPackets, it)
                 }
+
+            private fun parsePacketsPacket(input: CharSequence): Pair<Int, List<Packet>> {
+                val numberOfPackets = input.substring(0, PACKET_NUMBER_BITS).toInt(2)
+                val packetsInput = StringBuilder(input.substring(PACKET_NUMBER_BITS))
+
+                return (0 until numberOfPackets)
+                    .map {
+                        parsePacket(packetsInput).also { packetsInput.removeN(it.length) }
+                    }.let {
+                        numberOfPackets to it
+                    }
             }
 
-            private fun parseBitPacket(input: CharSequence): Pair<Int, MutableList<Packet>> {
-                val expectedBitLength = input.substring(0, bitLengthBits).toInt(2)
-                val packetsInput = StringBuilder(input.substring(bitLengthBits, bitLengthBits + expectedBitLength))
+            private fun parseBitPacket(input: CharSequence): Pair<Int, List<Packet>> {
+                val expectedBitLength = input.substring(0, BIT_NUMBER_BITS).toInt(2)
+                val packetsInput = StringBuilder(input.substring(BIT_NUMBER_BITS, BIT_NUMBER_BITS + expectedBitLength))
 
-                return mutableListOf<Packet>().apply {
+                return buildList {
                     while (sumOf(Packet::length) < expectedBitLength) {
                         parsePacket(packetsInput)
                             .also { add(it) }
@@ -150,33 +147,13 @@ object Day16 : Day() {
                 }
             }
 
-            private fun literalChunks(input: StringBuilder): List<Chunk> =
-                mutableListOf<Chunk>().apply {
-                    for (s in input.windowed(5, 5, true)) {
-                        if (s.length < 5) {
-                            add(Chunk.Remainder(s.length))
-                        } else {
-                            add(Chunk.Data(s))
-
-                            if (s.startsWith("0")) {
-                                break
-                            }
-                        }
-                    }
+            private fun StringBuilder.removeN(n: Int) =
+                substring(0, n).also {
+                    (0 until n).forEach { _ -> deleteCharAt(0) }
                 }
 
-            private fun StringBuilder.removeN(n: Int): String {
-                val substring = substring(0, n)
-
-                for (i in 0 until n) {
-                    deleteCharAt(0)
-                }
-
-                return substring
-            }
-
-            private fun decodeHexadecimal(hexadecimal: String): String {
-                return hexadecimal
+            private fun decodeHexToBin(hexadecimal: String) =
+                hexadecimal
                     .chunked(1)
                     .asSequence()
                     .map { it.toInt(16) }
@@ -184,34 +161,23 @@ object Day16 : Day() {
                     .map { "%4s".format(it) }
                     .map { it.replace(" ", "0") }
                     .joinToString("")
-            }
         }
 
     }
 
-    private sealed interface Chunk {
-        val length: Int
+    data class Chunk(val representation: String) {
+        val length = representation.length
 
-        data class Remainder(override val length: Int) : Chunk {
-            override fun toString(): String {
-                return "Rem_(${" ".repeat(length)})"
-            }
-        }
+        val flag = representation.substring(0, 1)
+        val content = representation.substring(1)
+        val value = content.toLong(2)
 
-        data class Data(val representation: String) : Chunk {
-            override val length = representation.length
-
-            val flag = representation.substring(0, 1)
-            val content = representation.substring(1)
-            val value = content.toLong(2)
-
-            override fun toString(): String {
-                return "Data([$flag $content]=$value)"
-            }
+        override fun toString(): String {
+            return "Data(flag=$flag content=$content)=$value"
         }
     }
 
-    private sealed class Operator(private val string: String, val evaluate: (input: List<Long>) -> Long) {
+    sealed class Operator(private val string: String, val evaluate: (input: List<Long>) -> Long) {
 
         object Sum : Operator("plus", List<Long>::sum)
         object Product : Operator("times", { it.fold(1) { a, b -> a * b } })
