@@ -17,9 +17,12 @@ import kotlin.time.DurationUnit
 private val dayClasses = dayClasses()
 
 private val dataSet = dataSet()
-private val min = dataSet.min()
-private val max = dataSet.max()
-private val expandBy = 1.1
+
+private val values = dataSet.values()
+private val min = values.minOf { it }
+private val max = values.maxOf { it }
+
+private const val expandBy = 1.1
 
 fun main() {
     CategoryPlot(
@@ -46,18 +49,15 @@ fun main() {
     }
 }
 
-private fun DefaultCategoryDataset.min() = values().minOf { it }
-private fun DefaultCategoryDataset.max() = values().maxOf { it }
-private fun DefaultCategoryDataset.values(): List<Double> {
-    return (0 until rowCount).flatMap { row ->
+private fun DefaultCategoryDataset.values() =
+    (0 until rowCount).flatMap { row ->
         (0 until columnCount).map { column ->
             getValue(row, column).toDouble()
         }
     }
-}
 
-private fun dataSet(): DefaultCategoryDataset {
-    return dayClasses
+private fun dataSet() =
+    dayClasses
         .map { it.kotlin.objectInstance as Day }
         .map { Result(it) }
         .let { results ->
@@ -68,7 +68,6 @@ private fun dataSet(): DefaultCategoryDataset {
                 }
             }
         }
-}
 
 private data class Result(
     val day: Day,
