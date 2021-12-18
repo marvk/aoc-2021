@@ -1,29 +1,29 @@
+import Day18.Node.ReductionAction.*
+
 object Day18 : Day() {
     override val part1 = object : Part<Long>(4140) {
-        override fun solve(input: List<String>): Long {
-            return input.map(Node.Companion::parse).reduce(Node::plus).magnitude
-        }
+        override fun solve(input: List<String>) =
+            input
+                .map(Node.Companion::parse)
+                .reduce(Node::plus)
+                .magnitude
     }
 
     override val part2 = object : Part<Long>(3993) {
-        override fun solve(input: List<String>): Long {
-            val nodes = input.map(Node.Companion::parse)
-
-            return nodes
-                .flatMap { a ->
-                    nodes.map { b -> a to b }
+        override fun solve(input: List<String>) =
+            input
+                .map(Node.Companion::parse)
+                .let {
+                    it.flatMap { a ->
+                        it.map { b -> a to b }
+                    }
                 }
                 .flatMap {
                     listOf(it, it.second to it.first)
                 }
-                .onEach { println("${it.first}\n${it.second}\n\n") }
-                .maxByOrNull { it.first.plus(it.second).magnitude }!!
-                .also { println("nani\n${it.first}\n${it.second}") }
-                .let { it.first.plus(it.second).magnitude }
-        }
-
+                .map { it.first + it.second }
+                .maxOf(Node::magnitude)
     }
-
 
     sealed interface Node {
         val magnitude: Long
@@ -32,45 +32,101 @@ object Day18 : Day() {
             override val magnitude
                 get() = left.magnitude * 3 + right.magnitude * 2
 
-            override fun toPrettyString() =
-                "[ ($magnitude) \n${left.toPrettyString().prependIndent("    ")}\n${
-                    right.toPrettyString().prependIndent("    ")
-                }\n]"
-
-            override fun toString() =
-                "[$left,$right]"
-
-            fun leafs() =
-                left as Leaf to right as Leaf
-
-            override fun copy(): Node {
-                return Inner(left.copy(), right.copy())
-            }
+            fun leafs() = left as Leaf to right as Leaf
+            override fun deepCopy() = Inner(left.deepCopy(), right.deepCopy())
+            override fun toString() = "[$left,$right]"
         }
 
-        fun toPrettyString(): String
-
-        class Leaf(var value: Int) : Node {
+        data class Leaf(var value: Int) : Node {
             override val magnitude
                 get() = value.toLong()
 
-            override fun toPrettyString() =
-                value.toString()
+            override fun deepCopy() = copy()
+            override fun toString() = value.toString()
+        }
 
-            override fun toString() =
-                value.toString()
+        operator fun plus(other: Node) =
+            Inner(this, other).deepCopy().also { it.reduce() }
 
-            override fun copy(): Node {
-                return Leaf(value)
+
+        private fun Inner.reduce() =
+            generateSequence { reduceExplode(1) ?: reduceSplit() }.lastOrNull().let { this }
+
+        private fun Inner.reduceSplit(): ReductionAction? {
+            (left as? Leaf)
+                ?.split()
+                ?.also { left = it }
+                ?.also { return ReductionCompleted }
+
+            (left as? Inner)
+                ?.reduceSplit()
+                ?.also { return it }
+
+            (right as? Leaf)
+                ?.split()
+                ?.also { right = it }
+                ?.also { return ReductionCompleted }
+
+            (right as? Inner)
+                ?.reduceSplit()
+                ?.also { return it }
+
+            return null
+        }
+
+        private fun Leaf.split() =
+            value
+                .takeIf { it > 9 }
+                ?.let(::generateSplitInnerFromValue)
+
+        private fun generateSplitInnerFromValue(value: Int) =
+            Inner(Leaf(value / 2), Leaf(value / 2 + value % 2))
+
+        private fun Inner.explodeLeafs() =
+            listOf(left as Leaf, right as Leaf)
+                .map { it.value }
+                .let { (l, r) -> ExplodedLeft(l) to ExplodedRight(r) }
+
+        private fun Inner.reduceExplode(depth: Int): ReductionAction? {
+            (left as? Inner)?.let { leftAsInner ->
+                if (depth >= 4) {
+                    return leftAsInner
+                        .explodeLeafs()
+                        .also { left = Leaf(0) }
+                        .also { (_, r) -> r.applyToNode(right) }
+                        .let { (l, _) -> l }
+                } else {
+                    when (val action = leftAsInner.reduceExplode(depth + 1)) {
+                        is ExplodedRight -> ReductionCompleted.also { action.applyToNode(right) }
+                        is ExplodedLeft, ReductionCompleted -> action
+                        else -> null
+                    }?.let { return it }
+                }
             }
+
+            (right as? Inner)?.let { rightAsInner ->
+                if (depth >= 4) {
+                    return rightAsInner
+                        .explodeLeafs()
+                        .also { right = Leaf(0) }
+                        .also { (l, _) -> l.applyToNode(left) }
+                        .let { (_, r) -> r }
+                } else {
+                    when (val action = rightAsInner.reduceExplode(depth + 1)) {
+                        is ExplodedLeft -> ReductionCompleted.also { action.applyToNode(left) }
+                        is ExplodedRight, ReductionCompleted -> return action
+                        else -> null
+                    }?.let { return it }
+                }
+            }
+
+            return null
         }
 
-        fun plus(other: Node): Node {
-            return Inner(this.copy(), other.copy()).apply { reduce() }
-        }
+        fun deepCopy(): Node
 
         private sealed interface ReductionAction {
-            data class ExplodedLeft(val value: Int, val debug: String = "") : ReductionAction {
+            data class ExplodedLeft(val value: Int) : ReductionAction {
                 fun applyToNode(node: Node) {
                     when (node) {
                         is Leaf -> node.value += value
@@ -79,7 +135,7 @@ object Day18 : Day() {
                 }
             }
 
-            data class ExplodedRight(val value: Int, val debug: String = "") : ReductionAction {
+            data class ExplodedRight(val value: Int) : ReductionAction {
                 fun applyToNode(node: Node) {
                     when (node) {
                         is Leaf -> node.value += value
@@ -88,148 +144,47 @@ object Day18 : Day() {
                 }
             }
 
-            data class ReductionCompleted(val debug: String = "") : ReductionAction
+            object ReductionCompleted : ReductionAction
         }
-
-        private fun Inner.reduce(): Node {
-            do {
-                val reduce = explode(1) ?: split()
-            } while (reduce != null)
-            return this
-        }
-
-        fun pretty() {
-            println("~".repeat(100))
-            println(this.toPrettyString())
-        }
-
-        private fun Inner.split(): ReductionAction? {
-            if (left is Leaf) {
-                val before = (left as Leaf).copy()
-                reduceLeaf(left as Leaf)
-                    ?.also {
-                        left = it
-                    }?.also {
-                        return ReductionAction.ReductionCompleted("left leaf split {$before -> $left}")
-                    }
-            } else {
-                (left as Inner).split()?.run { return this }
-            }
-
-            if (right is Leaf) {
-                val before = (right as Leaf).copy()
-                reduceLeaf(right as Leaf)
-                    ?.also {
-                        right = it
-                    }?.also {
-                        return ReductionAction.ReductionCompleted("right leaf split {$before -> $right}")
-                    }
-            } else {
-                (right as Inner).split()?.run { return this }
-            }
-
-            return null
-        }
-
-        private fun Inner.explode(depth: Int): ReductionAction? {
-            (left as? Inner)?.let {
-                if (depth >= 4) {
-                    val before = (left as Inner).copy()
-                    val (leftLeaf, rightLeaf) = (left as Inner).leafs()
-                    left = Leaf(0)
-                    ReductionAction.ExplodedRight(rightLeaf.value).applyToNode(right)
-                    return ReductionAction.ExplodedLeft(leftLeaf.value,
-                        "left leaf exploded {$before -> $leftLeaf 0 $rightLeaf}")
-                } else {
-                    when (val action = (left as Inner).explode(depth + 1)) {
-                        is ReductionAction.ExplodedRight -> {
-                            action.applyToNode(right)
-                            return ReductionAction.ReductionCompleted(action.debug)
-                        }
-                        is ReductionAction.ExplodedLeft -> return action
-                        is ReductionAction.ReductionCompleted -> return action
-                        else -> {}
-                    }
-                }
-            }
-
-            (right as? Inner)?.let {
-                if (depth >= 4) {
-                    val before = (right as Inner).copy()
-                    val (leftLeaf, rightLeaf) = (right as Inner).leafs()
-                    right = Leaf(0)
-                    ReductionAction.ExplodedLeft(leftLeaf.value).applyToNode(left)
-                    return ReductionAction.ExplodedRight(rightLeaf.value,
-                        "right leaf exploded {$before -> $leftLeaf 0 $rightLeaf}")
-                } else {
-                    when (val action = (right as Inner).explode(depth + 1)) {
-                        is ReductionAction.ExplodedLeft -> {
-                            action.applyToNode(left)
-                            return ReductionAction.ReductionCompleted(action.debug)
-                        }
-                        is ReductionAction.ExplodedRight -> return action
-                        is ReductionAction.ReductionCompleted -> return action
-                        null -> {}
-                    }
-                }
-            }
-
-            return null
-        }
-
-        fun reduceLeaf(leaf: Leaf): Inner? {
-            val leftValue = leaf.value
-            if (leftValue > 9) {
-                val a = leftValue / 2
-                val b = leftValue / 2 + leftValue % 2
-                return Inner(Leaf(a), Leaf(b))
-            }
-            return null
-        }
-
-        abstract fun copy(): Node
 
         companion object {
             fun parse(input: String) = LexerParser(input).parse()
 
             fun parse(input: List<String>): List<Node> =
                 input.map(::parse)
-        }
-    }
 
-    class LexerParser(input: String) {
-        private val input: MutableList<Char> = input.toMutableList()
-        private val currentChar
-            get() = input[0]
+            private class LexerParser(input: String) {
+                private val input: MutableList<Char> = input.toMutableList()
+                private val currentChar
+                    get() = input[0]
 
-        private var consumed = false
+                private var consumed = false
 
-        fun parse() = when (consumed) {
-            true -> throw IllegalStateException()
-            else -> parseNode().also { consumed = true }
-        }
+                fun parse() = when (consumed) {
+                    true -> throw IllegalStateException()
+                    false -> parseNode().also { consumed = true }
+                }
 
-        private fun parseNode(): Node =
-            consume('[')
-                .let { parseValue() }
-                .also { consume(',') }
-                .let { it to parseValue() }
-                .also { consume(']') }
-                .let { Node.Inner(it.first, it.second) }
+                private fun parseNode(): Node =
+                    consume('[')
+                        .run { parseValue() }
+                        .also { consume(',') }
+                        .let { it to parseValue() }
+                        .also { consume(']') }
+                        .let { Node.Inner(it.first, it.second) }
 
 
-        private fun parseValue() =
-            when {
-                currentChar.isDigit() -> Node.Leaf(consume().digitToInt())
-                else -> parseNode()
+                private fun parseValue() =
+                    when {
+                        currentChar.isDigit() -> Leaf(consume().digitToInt())
+                        else -> parseNode()
+                    }
+
+                private fun consume() = input.removeAt(0)
+
+                private fun consume(char: Char) =
+                    input.removeAt(0).takeIf { it == char } ?: throw IllegalStateException()
             }
-
-        private fun consume(): Char {
-            return input.removeAt(0)
-        }
-
-        private fun consume(char: Char): Char {
-            return input.removeAt(0).takeIf { it == char } ?: throw IllegalStateException()
         }
     }
 }
