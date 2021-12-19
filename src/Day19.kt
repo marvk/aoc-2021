@@ -33,15 +33,21 @@ object Day19 : Day() {
 
             val todo = scanners.drop(1).let(::ArrayDeque)
 
+            val combinationsTried = mutableSetOf<Pair<Int, Int>>()
+
             while (todo.isNotEmpty()) {
                 todo.removeFirst().let { current ->
                     current
                         .let { itScanner ->
-                            firstNotNullOfOrNull {
-                                it.beacons.determinePosition(itScanner)
-                            }
+                            this
+                                .filter { !combinationsTried.contains(it.id to current.id) }
+                                .firstNotNullOfOrNull {
+                                    combinationsTried.add(it.id to current.id)
+                                    it.beacons.determinePosition(itScanner)
+                                }
                         }
                         ?.let {
+
                             add(it)
                         }
                         ?: todo.add(current)
@@ -98,6 +104,8 @@ object Day19 : Day() {
         val id: Int,
         val beacons: Set<Vec3>,
     ) {
+        val rotations by lazy { rotations(beacons) }
+
         companion object {
             fun parseAll(input: List<String>) =
                 input

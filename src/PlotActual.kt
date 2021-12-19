@@ -17,25 +17,16 @@ private val dayClasses = dayClasses()
 
 private val dataSet = dataSet()
 
-private val values = dataSet.values()
-private val min = values.minOf { it }
-private val max = values.maxOf { it }
-
-private const val expandBy = 1.1
+private const val warumps = 5
+private const val runs = 10
 
 fun main() {
     CategoryPlot(
         dataSet,
         CategoryAxis("Day").apply {
             categoryLabelPositions = CategoryLabelPositions.UP_45
-//            categoryMargin = 0.0
         },
         NumberAxis("time in s"),
-//        LogAxis("time in s").apply {
-//            base = 10.0
-//            standardTickUnits = NumberAxis.createIntegerTickUnits()
-//            range = Range(min / expandBy, max * expandBy)
-//        },
         BarRenderer().apply {
             setShadowVisible(false)
             barPainter = StandardBarPainter()
@@ -49,13 +40,6 @@ fun main() {
         ChartUtils.saveChartAsPNG(Paths.get("result.png").toFile(), it, 600, 800)
     }
 }
-
-private fun DefaultCategoryDataset.values() =
-    (0 until rowCount).flatMap { row ->
-        (0 until columnCount).map { column ->
-            getValue(row, column).toDouble()
-        }
-    }
 
 private fun dataSet() =
     dayClasses
@@ -78,8 +62,11 @@ private data class Result(
     val part2Duration by lazy { day.part2.runTimed(2) }
 
     private fun Day.Part<*>.runTimed(index: Int) =
-        repeat(5) { runTimed { runActual(index) } }
+        repeat(warumps) { runTimed { runActual(index) } }
             .let {
-                (0 until 10).map { runTimed { runActual(index) } }.reduce(Duration::plus).div(10)
+                (0 until runs)
+                    .map { runTimed { runActual(index) } }
+                    .reduce(Duration::plus)
+                    .div(runs)
             }
 }
