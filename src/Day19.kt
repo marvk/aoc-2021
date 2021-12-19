@@ -1,3 +1,4 @@
+import Day19.Vec3
 import kotlin.math.absoluteValue
 
 object Day19 : Day() {
@@ -7,7 +8,7 @@ object Day19 : Day() {
                 .parseAll(input)
                 .let(::doTheThing)
                 .asSequence()
-                .flatMap { it.second }
+                .flatMap { it.beacons }
                 .distinct()
                 .count()
     }
@@ -17,7 +18,7 @@ object Day19 : Day() {
             val map = Scanner
                 .parseAll(input)
                 .let(::doTheThing)
-                .map { it.first }
+                .map { it.distance }
 
             return map.maxOf { first ->
                 map.maxOf { second ->
@@ -31,28 +32,28 @@ object Day19 : Day() {
 
     }
 
-    fun doTheThing(scanners: List<Scanner>): MutableSet<Pair<Vec3, Set<Vec3>>> {
+    fun doTheThing(scanners: List<Scanner>): Set<MatchResult> {
         val first = scanners.first()
         val todo = scanners.drop(1).let(::ArrayDeque)
 
-        var result = mutableSetOf(Vec3.ZERO to first.beacons)
+        var result = mutableSetOf(MatchResult(first.beacons, Vec3.ZERO, Rotation.IDENTITY))
 
         while (todo.isNotEmpty()) {
-            println("~".repeat(100))
             val current = todo.removeFirst()
 
-            println("id ${current.id}  remaining ${todo.size} result ${result.size}")
-
             current
-                .let {
+                .let { itScanner ->
                     result.asSequence().map { r ->
-                        r.second.matchTo(it)?.let {
-                            (r.first + it.first) to it.second
+                        r.beacons.matchTo(itScanner)?.let {
+                            println("<>~~~~~~~~~~~~~~~~~~~<> ${itScanner.id} ~~ ${it.distance}")
+                            it.distance to it.beacons
                         }
                     }.filter { it != null }.firstOrNull()
                 }
                 ?.let {
-                    result.add(it)
+                    println("${current.id} + ${it.first}")
+
+                    result.add(MatchResult(it.second, it.first, Rotation.IDENTITY))
                 }
                 ?: todo.add(current)
 
@@ -61,56 +62,48 @@ object Day19 : Day() {
         return result
     }
 
-    fun rotations(beacons: Set<Vec3>): Set<Set<Vec3>> {
-        var beacons = beacons
-        return buildSet {
-            (0 until 2).forEach { _ ->
-                (0 until 3).forEach { _ ->
-                    beacons = beacons.map(Vec3::roll).toSet().also(::add)
-                    (0 until 3).forEach { _ ->
-                        beacons = beacons.map(Vec3::turn).toSet().also(::add)
-                    }
-                }
-                beacons = beacons.asSequence().map(Vec3::roll).map(Vec3::turn).map(Vec3::roll).toSet()
-            }
-        }
+    fun rotations(beacons: Set<Vec3>): Set<Pair<Rotation, Set<Vec3>>> {
+        return Rotation.ALL.map { sequence ->
+            sequence to beacons.asSequence().map { it.rotate(sequence) }.toSet()
+        }.toSet()
     }
 
-    fun Iterable<Vec3>.matchTo(other: Scanner): Pair<Vec3, Set<Vec3>>? {
-        println("matchTo")
-
+    private fun Iterable<Vec3>.matchTo(other: Scanner): MatchResult? {
         rotations(other.beacons).forEach { someRotationOfOther ->
             val distances =
                 this
                     .associateWith { current ->
-                        someRotationOfOther.map(current::difference).toSet()
+                        someRotationOfOther.second.map(current::difference).toSet()
                     }
 
             val allDistances = distances.values.flatten().toSet()
 
             allDistances
                 .filter { current ->
-                    distances.filter { it.value.contains(current) }.size.also { if (it > 1) println("FOUND MATCH WITH $it") } >= 12
+                    distances.filter { it.value.contains(current) }.size >= 12
                 }
                 .firstOrNull()
                 ?.let { current ->
-                    println("YEET")
-                    val result = someRotationOfOther.map { it.translate(current) }.toSet()
-
-                    check(this.intersect(result).size >= 12)
-
-                    return current to result
+                    return MatchResult(
+                        someRotationOfOther.second.map { it.translate(current) }.toSet(),
+                        current,
+                        someRotationOfOther.first
+                    )
                 }
         }
 
         return null
     }
 
+    data class MatchResult(
+        val beacons: Set<Vec3>,
+        val distance: Vec3,
+        val rotation: Rotation,
+    )
 
     data class Scanner(
         val id: Int,
         val beacons: Set<Vec3>,
-        var translation: Vec3 = Vec3.ZERO,
     ) {
         companion object {
             fun parseAll(input: List<String>): List<Scanner> {
@@ -141,12 +134,80 @@ object Day19 : Day() {
         }
     }
 
+    @JvmInline
+    value class Rotation(private val sequence: String) {
+        private val reverseSequence
+            get() = sequence.reversed()
+
+        init {
+            check(sequence.matches(Regex("""[XY]*""")))
+        }
+
+        fun rotate(vec: Vec3): Vec3 {
+            var result = vec
+            sequence.forEach {
+                result = when (it) {
+                    'X' -> result.rotateXForwards()
+                    'Y' -> result.rotateYForwards()
+                    else -> throw IllegalStateException()
+                }
+            }
+            return result
+        }
+
+        fun rotateReverse(vec: Vec3): Vec3 {
+            var result = vec
+            reverseSequence.forEach {
+                result = when (it) {
+                    'X' -> result.rotateXBackwards()
+                    'Y' -> result.rotateYBackwards()
+                    else -> throw IllegalStateException()
+                }
+            }
+            return result
+        }
+
+        companion object {
+
+            val IDENTITY = Rotation("")
+
+            val ALL = listOf(
+                "",
+                "X",
+                "Y",
+                "XX",
+                "XY",
+                "YX",
+                "YY",
+                "XXX",
+                "XXY",
+                "XYX",
+                "XYY",
+                "YXX",
+                "YYX",
+                "YYY",
+                "XXXY",
+                "XXYX",
+                "XXYY",
+                "XYXX",
+                "XYYY",
+                "YXXX",
+                "YYYX",
+                "XXXYX",
+                "XYXXX",
+                "XYYYX",
+            ).map(::Rotation)
+        }
+    }
+
     data class Vec3(
         val x: Int,
         val y: Int,
         val z: Int,
     ) {
         operator fun plus(other: Vec3) = translate(other)
+        operator fun unaryMinus() = Vec3(-x, -y, -z)
+        operator fun minus(other: Vec3) = translate(-other)
         fun translate(other: Vec3) = translate(other.x, other.y, other.z)
         fun translate(dx: Int, dy: Int, dz: Int) = Vec3(x + dx, y + dy, z + dz)
         fun translateX(dx: Int) = translate(dx, 0, 0)
@@ -157,14 +218,16 @@ object Day19 : Day() {
 
         val manhattanDistance = x.absoluteValue + y.absoluteValue + z.absoluteValue
 
+        fun rotate(rotation: Rotation) = rotation.rotate(this)
+        fun rotateReverse(rotation: Rotation) = rotation.rotateReverse(this)
         fun rotateXForwards() = Vec3(x, z, -y)
         fun rotateXBackwards() = Vec3(x, -z, y)
+
         fun rotateYForwards() = Vec3(z, y, -x)
         fun rotateYBackwards() = Vec3(-z, y, x)
+
         fun rotateZForwards() = Vec3(y, -x, z)
         fun rotateZBackwards() = Vec3(-y, x, z)
-        fun roll() = rotateXForwards()
-        fun turn() = rotateZBackwards()
 
         override fun toString() = "[$x,$y,$z]"
 
@@ -180,4 +243,13 @@ object Day19 : Day() {
     }
 
 
+}
+
+
+fun main() {
+    val vec3 = Vec3(1, 2, 3)
+
+    check(vec3 == vec3.rotateXForwards().rotateXBackwards())
+    check(vec3 == vec3.rotateYForwards().rotateYBackwards())
+    check(vec3 == vec3.rotateZForwards().rotateZBackwards())
 }
