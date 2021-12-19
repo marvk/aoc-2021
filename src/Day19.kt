@@ -1,4 +1,3 @@
-import Day19.Vec3
 import kotlin.math.absoluteValue
 
 object Day19 : Day() {
@@ -6,7 +5,7 @@ object Day19 : Day() {
         override fun solve(input: List<String>) =
             Scanner
                 .parseAll(input)
-                .let(::doTheThing)
+                .let(::positionScanners)
                 .asSequence()
                 .flatMap { it.beacons }
                 .distinct()
@@ -14,100 +13,94 @@ object Day19 : Day() {
     }
 
     override val part2 = object : Part<Int>(3621) {
-        override fun solve(input: List<String>): Int {
-            val map = Scanner
+        override fun solve(input: List<String>) =
+            Scanner
                 .parseAll(input)
-                .let(::doTheThing)
+                .let(::positionScanners)
                 .map { it.distance }
+                .let { positions ->
+                    positions.maxOf { first ->
+                        positions.maxOf { second ->
+                            first.difference(second).manhattanDistance
+                        }
+                    }
+                }
+    }
 
-            return map.maxOf { first ->
-                map.maxOf { second ->
-                    println("$first $second ${first.difference(second).manhattanDistance}")
+    private fun positionScanners(scanners: List<Scanner>) =
+        buildSet<PositionedScanner> {
+            add(PositionedScanner.atOrigin(scanners.first()))
 
-                    first.difference(second).manhattanDistance
+            val todo = scanners.drop(1).let(::ArrayDeque)
+
+            while (todo.isNotEmpty()) {
+                todo.removeFirst().let { current ->
+                    current
+                        .let { itScanner ->
+                            firstNotNullOfOrNull {
+                                it.beacons.determinePosition(itScanner)
+                            }
+                        }
+                        ?.let {
+                            add(it)
+                        }
+                        ?: todo.add(current)
                 }
             }
-
         }
 
-    }
-
-    fun doTheThing(scanners: List<Scanner>): Set<MatchResult> {
-        val first = scanners.first()
-        val todo = scanners.drop(1).let(::ArrayDeque)
-
-        var result = mutableSetOf(MatchResult(first.beacons, Vec3.ZERO, Rotation.IDENTITY))
-
-        while (todo.isNotEmpty()) {
-            val current = todo.removeFirst()
-
-            current
-                .let { itScanner ->
-                    result.asSequence().map { r ->
-                        r.beacons.matchTo(itScanner)?.let {
-                            println("<>~~~~~~~~~~~~~~~~~~~<> ${itScanner.id} ~~ ${it.distance}")
-                            it.distance to it.beacons
-                        }
-                    }.filter { it != null }.firstOrNull()
-                }
-                ?.let {
-                    println("${current.id} + ${it.first}")
-
-                    result.add(MatchResult(it.second, it.first, Rotation.IDENTITY))
-                }
-                ?: todo.add(current)
-
-        }
-
-        return result
-    }
-
-    fun rotations(beacons: Set<Vec3>): Set<Pair<Rotation, Set<Vec3>>> {
-        return Rotation.ALL.map { sequence ->
-            sequence to beacons.asSequence().map { it.rotate(sequence) }.toSet()
-        }.toSet()
-    }
-
-    private fun Iterable<Vec3>.matchTo(other: Scanner): MatchResult? {
-        rotations(other.beacons).forEach { someRotationOfOther ->
-            val distances =
-                this
-                    .associateWith { current ->
-                        someRotationOfOther.second.map(current::difference).toSet()
+    private fun rotations(beacons: Set<Vec3>) =
+        buildSet {
+            var beacons = beacons
+            (0 until 2).forEach { _ ->
+                (0 until 3).forEach { _ ->
+                    beacons = beacons.map(Vec3::roll).toSet().also(::add)
+                    (0 until 3).forEach { _ ->
+                        beacons = beacons.map(Vec3::turn).toSet().also(::add)
                     }
-
-            val allDistances = distances.values.flatten().toSet()
-
-            allDistances
-                .filter { current ->
-                    distances.filter { it.value.contains(current) }.size >= 12
                 }
-                .firstOrNull()
-                ?.let { current ->
-                    return MatchResult(
-                        someRotationOfOther.second.map { it.translate(current) }.toSet(),
-                        current,
-                        someRotationOfOther.first
-                    )
-                }
+                beacons = beacons.asSequence().map(Vec3::roll).map(Vec3::turn).map(Vec3::roll).toSet()
+            }
         }
 
-        return null
-    }
+    private fun Iterable<Vec3>.determinePosition(other: Scanner) =
+        rotations(other.beacons).firstNotNullOfOrNull { someRotationOfOther ->
+            map { current ->
+                someRotationOfOther.map(current::difference).toSet()
+            }.let { distances ->
+                distances
+                    .flatten()
+                    .toSet()
+                    .firstOrNull { current ->
+                        distances.filter { it.contains(current) }.size >= 12
+                    }
+                    ?.let { position ->
+                        PositionedScanner(
+                            other.id,
+                            someRotationOfOther.map { it.translate(position) }.toSet(),
+                            position
+                        )
+                    }
+            }
+        }
 
-    data class MatchResult(
+    private data class PositionedScanner(
+        val id: Int,
         val beacons: Set<Vec3>,
         val distance: Vec3,
-        val rotation: Rotation,
-    )
+    ) {
+        companion object {
+            fun atOrigin(scanner: Scanner) = PositionedScanner(scanner.id, scanner.beacons, Vec3.ZERO)
+        }
+    }
 
-    data class Scanner(
+    private data class Scanner(
         val id: Int,
         val beacons: Set<Vec3>,
     ) {
         companion object {
-            fun parseAll(input: List<String>): List<Scanner> {
-                return input
+            fun parseAll(input: List<String>) =
+                input
                     .asSequence()
                     .let { sequence ->
                         buildList<List<String>> {
@@ -124,7 +117,6 @@ object Day19 : Day() {
                         }
                     }
                     .map(::parse)
-            }
 
             fun parse(input: List<String>) =
                 Scanner(
@@ -134,73 +126,7 @@ object Day19 : Day() {
         }
     }
 
-    @JvmInline
-    value class Rotation(private val sequence: String) {
-        private val reverseSequence
-            get() = sequence.reversed()
-
-        init {
-            check(sequence.matches(Regex("""[XY]*""")))
-        }
-
-        fun rotate(vec: Vec3): Vec3 {
-            var result = vec
-            sequence.forEach {
-                result = when (it) {
-                    'X' -> result.rotateXForwards()
-                    'Y' -> result.rotateYForwards()
-                    else -> throw IllegalStateException()
-                }
-            }
-            return result
-        }
-
-        fun rotateReverse(vec: Vec3): Vec3 {
-            var result = vec
-            reverseSequence.forEach {
-                result = when (it) {
-                    'X' -> result.rotateXBackwards()
-                    'Y' -> result.rotateYBackwards()
-                    else -> throw IllegalStateException()
-                }
-            }
-            return result
-        }
-
-        companion object {
-
-            val IDENTITY = Rotation("")
-
-            val ALL = listOf(
-                "",
-                "X",
-                "Y",
-                "XX",
-                "XY",
-                "YX",
-                "YY",
-                "XXX",
-                "XXY",
-                "XYX",
-                "XYY",
-                "YXX",
-                "YYX",
-                "YYY",
-                "XXXY",
-                "XXYX",
-                "XXYY",
-                "XYXX",
-                "XYYY",
-                "YXXX",
-                "YYYX",
-                "XXXYX",
-                "XYXXX",
-                "XYYYX",
-            ).map(::Rotation)
-        }
-    }
-
-    data class Vec3(
+    private data class Vec3(
         val x: Int,
         val y: Int,
         val z: Int,
@@ -208,6 +134,7 @@ object Day19 : Day() {
         operator fun plus(other: Vec3) = translate(other)
         operator fun unaryMinus() = Vec3(-x, -y, -z)
         operator fun minus(other: Vec3) = translate(-other)
+
         fun translate(other: Vec3) = translate(other.x, other.y, other.z)
         fun translate(dx: Int, dy: Int, dz: Int) = Vec3(x + dx, y + dy, z + dz)
         fun translateX(dx: Int) = translate(dx, 0, 0)
@@ -218,8 +145,6 @@ object Day19 : Day() {
 
         val manhattanDistance = x.absoluteValue + y.absoluteValue + z.absoluteValue
 
-        fun rotate(rotation: Rotation) = rotation.rotate(this)
-        fun rotateReverse(rotation: Rotation) = rotation.rotateReverse(this)
         fun rotateXForwards() = Vec3(x, z, -y)
         fun rotateXBackwards() = Vec3(x, -z, y)
 
@@ -228,6 +153,9 @@ object Day19 : Day() {
 
         fun rotateZForwards() = Vec3(y, -x, z)
         fun rotateZBackwards() = Vec3(-y, x, z)
+
+        fun roll() = rotateXForwards()
+        fun turn() = rotateZBackwards()
 
         override fun toString() = "[$x,$y,$z]"
 
@@ -241,15 +169,4 @@ object Day19 : Day() {
                     .let { (x, y, z) -> Vec3(x, y, z) }
         }
     }
-
-
-}
-
-
-fun main() {
-    val vec3 = Vec3(1, 2, 3)
-
-    check(vec3 == vec3.rotateXForwards().rotateXBackwards())
-    check(vec3 == vec3.rotateYForwards().rotateYBackwards())
-    check(vec3 == vec3.rotateZForwards().rotateZBackwards())
 }

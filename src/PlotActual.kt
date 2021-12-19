@@ -3,12 +3,10 @@ import org.jfree.chart.ChartUtils
 import org.jfree.chart.JFreeChart
 import org.jfree.chart.axis.CategoryAxis
 import org.jfree.chart.axis.CategoryLabelPositions
-import org.jfree.chart.axis.LogAxis
 import org.jfree.chart.axis.NumberAxis
 import org.jfree.chart.plot.CategoryPlot
 import org.jfree.chart.renderer.category.BarRenderer
 import org.jfree.chart.renderer.category.StandardBarPainter
-import org.jfree.data.Range
 import org.jfree.data.category.DefaultCategoryDataset
 import java.awt.Color
 import java.nio.file.Paths
@@ -29,23 +27,25 @@ fun main() {
         dataSet,
         CategoryAxis("Day").apply {
             categoryLabelPositions = CategoryLabelPositions.UP_45
-            categoryMargin = 0.1
+//            categoryMargin = 0.0
         },
-        LogAxis("time in s").apply {
-            base = 10.0
-            standardTickUnits = NumberAxis.createIntegerTickUnits()
-            range = Range(min / expandBy, max * expandBy)
-        },
+        NumberAxis("time in s"),
+//        LogAxis("time in s").apply {
+//            base = 10.0
+//            standardTickUnits = NumberAxis.createIntegerTickUnits()
+//            range = Range(min / expandBy, max * expandBy)
+//        },
         BarRenderer().apply {
             setShadowVisible(false)
             barPainter = StandardBarPainter()
             setSeriesPaint(0, Color(250, 100, 100))
             setSeriesPaint(1, Color(100, 255, 150))
+            itemMargin = 0.0
         }
     ).let {
         JFreeChart("Execution Times", it)
     }.also {
-        ChartUtils.saveChartAsPNG(Paths.get("result.png").toFile(), it, 600, 400)
+        ChartUtils.saveChartAsPNG(Paths.get("result.png").toFile(), it, 600, 800)
     }
 }
 
