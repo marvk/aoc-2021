@@ -10,6 +10,7 @@ import org.jfree.chart.renderer.category.StandardBarPainter
 import org.jfree.data.category.DefaultCategoryDataset
 import java.awt.Color
 import java.nio.file.Paths
+import kotlin.time.Duration
 import kotlin.time.DurationUnit
 
 private val dayClasses = dayClasses()
@@ -77,5 +78,8 @@ private data class Result(
     val part2Duration by lazy { day.part2.runTimed(2) }
 
     private fun Day.Part<*>.runTimed(index: Int) =
-        runTimed { runActual(index) }
+        repeat(5) { runTimed { runActual(index) } }
+            .let {
+                (0 until 10).map { runTimed { runActual(index) } }.reduce(Duration::plus).div(10)
+            }
 }
