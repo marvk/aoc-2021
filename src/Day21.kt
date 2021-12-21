@@ -1,91 +1,29 @@
+import java.math.BigInteger
+import kotlin.math.ceil
+import kotlin.math.min
+
 object Day21 : Day() {
     override val part1 = object : Part<Int>(739785) {
         override fun solve(input: List<String>) =
             Game.parse(input).playWholeGame()
     }
 
-
-    override val part2 = object : Part<Long>(444356092776315L) {
+    override val part2 = object : Part<BigInteger>(BigInteger.valueOf(444356092776315L)) {
         override fun solve(input: List<String>) =
-            QuantumGame.parse(input).playWholeGame()
+            BitQuantumGame.parse(input).playWholeGame()
     }
 
-    private class QuantumGame(gameState: GameState) {
-        private var states = mapOf<GameState, Long>(gameState to 1)
-
-        fun playWholeGame() =
-            generateSequence(::step)
-                .first { it }
-                .let { states }
-                .entries
-                .partition { it.key.player1.score >= SCORE_TO_WIN }
-                .toList()
-                .map { it.sumOf(Map.Entry<GameState, Long>::value) }
-                .maxOf { it }
-
-        private fun step(): Boolean {
-            play(GameState::player1) { state, newPosition ->
-                state.copy(player1 = state.player1.copy(position = newPosition))
-            }
-            score(GameState::player1) { state, newScore, won ->
-                state.copy(player1 = state.player1.copy(score = newScore), won = won)
-            }
-            play(GameState::player2) { state, newPosition ->
-                state.copy(player2 = state.player2.copy(position = newPosition))
-            }
-            score(GameState::player2) { state, newScore, won ->
-                state.copy(player2 = state.player2.copy(score = newScore), won = won)
-            }
-
-            return states.keys.all(GameState::won)
-        }
-
-        private fun score(
-            playerState: (GameState) -> PlayerState,
-            copyState: (GameState, newScore: Int, won: Boolean) -> GameState,
-        ) {
-            buildMap {
-                states.forEach { (state, count) ->
-                    if (state.won) {
-                        incrementBy(state, count)
-                    } else {
-                        val newScore = playerState(state).score + playerState(state).position
-                        val won = newScore >= SCORE_TO_WIN
-                        incrementBy(copyState(state, newScore, won), count)
-                    }
-                }
-            }.also { states = it }
-        }
-
-        private fun play(
-            playerState: (GameState) -> PlayerState,
-            copyState: (GameState, newPosition: Int) -> GameState,
-        ) {
-            buildMap {
-                states.forEach { (state, count) ->
-                    if (state.won) {
-                        incrementBy(state, count)
-                    } else {
-                        rollToCount.forEach { (roll, incrementBy) ->
-                            newPosition(playerState(state).position, roll)
-                                .let { copyState(state, it) }
-                                .also { incrementBy(it, incrementBy * count) }
-                        }
-                    }
-                }
-            }.also { states = it }
-        }
-
-        private fun MutableMap<GameState, Long>.incrementBy(gameState: GameState, count: Long) =
-            compute(gameState) { _, previousCount ->
-                (previousCount ?: 0) + count
-            }
-
-        private val rollToCount = IntRange(3, 9).zip(listOf(1, 3, 6, 7, 6, 3, 1))
-
-        private fun newPosition(previousPosition: Int, increment: Int) = ((previousPosition - 1 + increment) % 10) + 1
-
+    private class BitQuantumGame(p1InitialPosition: Int, p2InitialPosition: Int) {
         companion object {
+            private const val P1_POS_MASK = 0b1111
+            private const val P1_POS_SHIFT = 0
+            private const val P2_POS_MASK = 0b11110000
+            private const val P2_POS_SHIFT = 4
+            private const val P1_SCORE_MASK = 0b111111111100000000
+            private const val P1_SCORE_SHIFT = 8
+            private const val P2_SCORE_MASK = 0b1111111111000000000000000000
+            private const val P2_SCORE_SHIFT = 18
+
             private val SCORE_TO_WIN = 21
 
             fun parse(input: List<String>) =
@@ -93,16 +31,126 @@ object Day21 : Day() {
                     .parse(input)
                     .let(Game::players)
                     .let {
-                        GameState(
-                            it[0].position.let(::PlayerState),
-                            it[1].position.let(::PlayerState),
+                        BitQuantumGame(
+                            it[0].position,
+                            it[1].position,
                         )
                     }
-                    .let(::QuantumGame)
         }
 
-        data class GameState(val player1: PlayerState, val player2: PlayerState, val won: Boolean = false)
-        data class PlayerState(val position: Int, val score: Int = 0)
+        private var p1Wins = BigInteger.ZERO
+        private var p2Wins = BigInteger.ZERO
+
+        private var states: Map<Int, BigInteger> = mapOf(
+            encode(
+                p1InitialPosition - 1,
+                p2InitialPosition - 1,
+                0,
+                0
+            ) to BigInteger.ONE
+        )
+
+        private fun encode(
+            p1Pos: Int,
+            p2Pos: Int,
+            p1Score: Int,
+            p2Score: Int,
+        ): Int {
+            return p1Pos.shl(P1_POS_SHIFT).and(P1_POS_MASK) or
+                    p2Pos.shl(P2_POS_SHIFT).and(P2_POS_MASK) or
+                    p1Score.shl(P1_SCORE_SHIFT).and(P1_SCORE_MASK) or
+                    p2Score.shl(P2_SCORE_SHIFT).and(P2_SCORE_MASK)
+        }
+
+        private val rollToCount: List<Pair<Int, BigInteger>> =
+            IntRange(3, 9).zip(listOf<Long>(1, 3, 6, 7, 6, 3, 1).map { BigInteger.valueOf(it) })
+
+        fun step(): Boolean {
+            val n = ceil(states.size / 3.0).toInt()
+            val sorted = states.entries.sortedBy {
+                val p1Score = it.key.and(P1_SCORE_MASK).shr(P1_SCORE_SHIFT)
+                val p2Score = it.key.and(P2_SCORE_MASK).shr(P2_SCORE_SHIFT)
+                min(p1Score, p2Score)
+            }
+            val p1todo = sorted.take(n).associateBy({ it.key }, { it.value })
+            val leftover = sorted.drop(n).associateBy({ it.key }, { it.value })
+
+            val p2todo: Map<Int, BigInteger> = buildMap {
+                for ((state, currentCount) in p1todo) {
+                    val p1Score = state.and(P1_SCORE_MASK).shr(P1_SCORE_SHIFT)
+                    val p2Score = state.and(P2_SCORE_MASK).shr(P2_SCORE_SHIFT)
+                    if (p1Score == SCORE_TO_WIN || p2Score == SCORE_TO_WIN) {
+                        throw IllegalStateException()
+                    }
+
+                    val p1Pos = state.and(P1_POS_MASK).shr(P1_POS_SHIFT)
+                    val p2Pos = state.and(P2_POS_MASK).shr(P2_POS_SHIFT)
+
+                    for ((roll, incrementCount) in rollToCount) {
+                        val newPos = (p1Pos + roll) % 10
+                        val newScore = p1Score + newPos + 1
+
+                        if (newScore >= SCORE_TO_WIN) {
+                            p1Wins = p1Wins.plus(currentCount * incrementCount)
+                        } else {
+                            val newKey = encode(
+                                newPos,
+                                p2Pos,
+                                newScore,
+                                p2Score
+                            )
+                            compute(newKey) { _, current ->
+                                (current ?: BigInteger.ZERO).plus(currentCount * incrementCount)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val result: Map<Int, BigInteger> = buildMap {
+                for ((state, currentCount) in p2todo) {
+                    val p1Score = state.and(P1_SCORE_MASK).shr(P1_SCORE_SHIFT)
+                    val p2Score = state.and(P2_SCORE_MASK).shr(P2_SCORE_SHIFT)
+                    if (p1Score == SCORE_TO_WIN || p2Score == SCORE_TO_WIN) {
+                        throw IllegalStateException()
+                    }
+
+                    val p1Pos = state.and(P1_POS_MASK).shr(P1_POS_SHIFT)
+                    val p2Pos = state.and(P2_POS_MASK).shr(P2_POS_SHIFT)
+
+                    for ((roll, incrementCount) in rollToCount) {
+                        val newPos = (p2Pos + roll) % 10
+                        val newScore = p2Score + newPos + 1
+
+                        if (newScore >= SCORE_TO_WIN) {
+                            p2Wins = p2Wins.plus(currentCount * incrementCount)
+                        } else {
+                            val newKey = encode(
+                                p1Pos,
+                                newPos,
+                                p1Score,
+                                newScore
+                            )
+                            compute(newKey) { _, current ->
+                                (current ?: BigInteger.ZERO).plus(currentCount * incrementCount)
+                            }
+                        }
+                    }
+                }
+            }
+
+            states = (result.keys + leftover.keys).associateWith { key ->
+                result.getOrDefault(key, BigInteger.ZERO) + leftover.getOrDefault(key, BigInteger.ZERO)
+            }
+
+            return states.isEmpty()
+        }
+
+        fun playWholeGame(): BigInteger {
+            return generateSequence { step() }
+                .first { it }
+                .let { p1Wins.max(p2Wins) }
+        }
     }
 
     private class Game(players: List<Player>) {
