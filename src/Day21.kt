@@ -1,5 +1,3 @@
-import kotlin.math.max
-
 object Day21 : Day() {
     override val part1 = object : Part<Int>(739785) {
         override fun solve(input: List<String>) =
@@ -12,121 +10,84 @@ object Day21 : Day() {
             QuantumGame.parse(input).playWholeGame()
     }
 
-    class QuantumGame(val gameState: GameState) {
+    private class QuantumGame(gameState: GameState) {
         private var states = mapOf<GameState, Long>(gameState to 1)
 
+        fun playWholeGame() =
+            generateSequence(::step)
+                .first { it }
+                .let { states }
+                .entries
+                .partition { it.key.player1.score >= SCORE_TO_WIN }
+                .toList()
+                .map { it.sumOf(Map.Entry<GameState, Long>::value) }
+                .maxOf { it }
+
         private fun step(): Boolean {
-            playPlayer1()
-            playPlayer1()
-            playPlayer1()
-            scorePlayer1()
+            play(GameState::player1) { state, newPosition ->
+                state.copy(player1 = state.player1.copy(position = newPosition))
+            }
+            score(GameState::player1) { state, newScore, won ->
+                state.copy(player1 = state.player1.copy(score = newScore), won = won)
+            }
+            play(GameState::player2) { state, newPosition ->
+                state.copy(player2 = state.player2.copy(position = newPosition))
+            }
+            score(GameState::player2) { state, newScore, won ->
+                state.copy(player2 = state.player2.copy(score = newScore), won = won)
+            }
 
-            playPlayer2()
-            playPlayer2()
-            playPlayer2()
-            scorePlayer2()
-
-            return states.keys.all { it.won }
+            return states.keys.all(GameState::won)
         }
 
-        private fun scorePlayer1() {
-            states = buildMap {
+        private fun score(
+            playerState: (GameState) -> PlayerState,
+            copyState: (GameState, newScore: Int, won: Boolean) -> GameState,
+        ) {
+            buildMap {
                 states.forEach { (state, count) ->
                     if (state.won) {
-                        compute(state) { _, previousCount ->
-                            (previousCount ?: 0) + count
-                        }
+                        incrementBy(state, count)
                     } else {
-                        val newScore = state.player1.score + state.player1.position
-                        val won = newScore >= 21
-                        compute(state.copy(player1 = state.player1.copy(score = newScore),
-                            won = won)) { _, previousCount ->
-                            (previousCount ?: 0) + count
+                        val newScore = playerState(state).score + playerState(state).position
+                        val won = newScore >= SCORE_TO_WIN
+                        incrementBy(copyState(state, newScore, won), count)
+                    }
+                }
+            }.also { states = it }
+        }
+
+        private fun play(
+            playerState: (GameState) -> PlayerState,
+            copyState: (GameState, newPosition: Int) -> GameState,
+        ) {
+            buildMap {
+                states.forEach { (state, count) ->
+                    if (state.won) {
+                        incrementBy(state, count)
+                    } else {
+                        rollToCount.forEach { (roll, incrementBy) ->
+                            newPosition(playerState(state).position, roll)
+                                .let { copyState(state, it) }
+                                .also { incrementBy(it, incrementBy * count) }
                         }
                     }
                 }
-            }
+            }.also { states = it }
         }
 
-        private fun scorePlayer2() {
-            states = buildMap {
-                states.forEach { (state, count) ->
-                    if (state.won) {
-                        compute(state) { _, previousCount ->
-                            (previousCount ?: 0) + count
-                        }
-                    } else {
-                        val newScore = state.player2.score + state.player2.position
-                        val won = newScore >= 21
-                        compute(state.copy(player2 = state.player2.copy(score = newScore),
-                            won = won)) { _, previousCount ->
-                            (previousCount ?: 0) + count
-                        }
-                    }
-                }
+        private fun MutableMap<GameState, Long>.incrementBy(gameState: GameState, count: Long) =
+            compute(gameState) { _, previousCount ->
+                (previousCount ?: 0) + count
             }
-        }
 
-        private fun playPlayer1() {
-            states = buildMap {
-                states.forEach { (state, count) ->
-                    if (state.won) {
-                        compute(state) { _, previousCount ->
-                            (previousCount ?: 0) + count
-                        }
-                    } else {
-                        newPositions(state.player1.position)
-                            .map { state.copy(player1 = state.player1.copy(position = it)) }
-                            .forEach {
-                                compute(it) { _, previousCount ->
-                                    (previousCount ?: 0) + count
-                                }
-                            }
-                    }
-                }
-            }
-        }
+        private val rollToCount = IntRange(3, 9).zip(listOf(1, 3, 6, 7, 6, 3, 1))
 
-        private fun playPlayer2() {
-            states = buildMap {
-                states.forEach { (state, count) ->
-                    if (state.won) {
-                        compute(state) { _, previousCount ->
-                            (previousCount ?: 0) + count
-                        }
-                    } else {
-                        newPositions(state.player2.position)
-                            .map { state.copy(player2 = state.player2.copy(position = it)) }
-                            .forEach {
-                                compute(it) { _, previousCount ->
-                                    (previousCount ?: 0) + count
-                                }
-                            }
-                    }
-                }
-            }
-        }
-
-        private fun newPositions(previousPosition: Int) = listOf(
-            ((previousPosition - 1 + 1) % 10) + 1,
-            ((previousPosition - 1 + 2) % 10) + 1,
-            ((previousPosition - 1 + 3) % 10) + 1
-        )
-
-        fun playWholeGame(): Long {
-            while (true) {
-                if (step()) {
-                    val (p1WinEntries, p2WinEntries) = states.entries.partition { it.key.player1.score >= 21 }
-
-                    val p1Wins = p1WinEntries.map(Map.Entry<GameState, Long>::value).sum()
-                    val p2Wins = p2WinEntries.map(Map.Entry<GameState, Long>::value).sum()
-
-                    return max(p1Wins, p2Wins)
-                }
-            }
-        }
+        private fun newPosition(previousPosition: Int, increment: Int) = ((previousPosition - 1 + increment) % 10) + 1
 
         companion object {
+            private val SCORE_TO_WIN = 21
+
             fun parse(input: List<String>) =
                 Game
                     .parse(input)
@@ -144,10 +105,19 @@ object Day21 : Day() {
         data class PlayerState(val position: Int, val score: Int = 0)
     }
 
-    class Game(players: List<Player>, val die: Die) {
+    private class Game(players: List<Player>) {
+        private val die = DeterministicDie()
         val players = players.toList()
 
-        fun step(): Int? {
+        fun playWholeGame(): Int {
+            while (true) {
+                step()?.also {
+                    return it
+                }
+            }
+        }
+
+        private fun step(): Int? {
             players.forEach { player ->
                 player.moveForward(die() + die() + die())
                 player.score += player.position
@@ -160,30 +130,16 @@ object Day21 : Day() {
             return null
         }
 
-        fun playWholeGame(): Int {
-            while (true) {
-                step()?.also {
-                    return it
-                }
-            }
-        }
-
         companion object {
             fun parse(input: List<String>) =
                 input.map { line ->
-                    Regex("""Player (?<pid>\d+) starting position: (?<pos>\d+)""").matchEntire(line)!!.groups.let {
-                        Player(
-                            it["pid"]!!.value.toInt(),
-                            it["pos"]!!.value.toInt(),
-                        )
+                    Regex("""Player \d+ starting position: (?<pos>\d+)""").matchEntire(line)!!.groups.let {
+                        Player(it["pos"]!!.value.toInt())
                     }
-                }.let { Game(it, Die.Deterministic()) }
+                }.let(::Game)
         }
 
-        class Player(
-            val id: Int,
-            position: Int,
-        ) {
+        class Player(position: Int) {
             init {
                 check((1..10).contains(position))
             }
@@ -196,13 +152,9 @@ object Day21 : Day() {
                 private set
 
             var score: Int = 0
-
-            override fun toString(): String {
-                return "Player[id=$id, position=$position, score=$score]"
-            }
         }
 
-        class DeterministicDie : () -> Int {
+        private class DeterministicDie : () -> Int {
             var numberOfRolls = 0
                 private set
             private var current = 1
