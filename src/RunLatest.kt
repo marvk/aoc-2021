@@ -1,3 +1,3 @@
 fun main() {
-    dayClasses().last().invoke("runActual")
+    dayClasses().last().invoke("run")
 }
