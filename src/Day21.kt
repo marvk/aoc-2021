@@ -1,6 +1,4 @@
 import java.math.BigInteger
-import kotlin.math.ceil
-import kotlin.math.min
 
 object Day21 : Day() {
     override val part1 = object : Part<Int>(739785) {
@@ -19,10 +17,10 @@ object Day21 : Day() {
             private const val P1_POS_SHIFT = 0
             private const val P2_POS_MASK = 0b11110000
             private const val P2_POS_SHIFT = 4
-            private const val P1_SCORE_MASK = 0b111111111100000000
+            private const val P1_SCORE_MASK = 0b1111100000000
             private const val P1_SCORE_SHIFT = 8
-            private const val P2_SCORE_MASK = 0b1111111111000000000000000000
-            private const val P2_SCORE_SHIFT = 18
+            private const val P2_SCORE_MASK = 0b111110000000000000
+            private const val P2_SCORE_SHIFT = 13
 
             private val SCORE_TO_WIN = 21
 
@@ -63,20 +61,11 @@ object Day21 : Day() {
         }
 
         private val rollToCount: List<Pair<Int, BigInteger>> =
-            IntRange(3, 9).zip(listOf<Long>(1, 3, 6, 7, 6, 3, 1).map { BigInteger.valueOf(it) })
+            IntRange(3, 9).zip(listOf<Long>(1, 3, 6, 7, 6, 3, 1).map(BigInteger::valueOf))
 
         fun step(): Boolean {
-            val n = ceil(states.size / 3.0).toInt()
-            val sorted = states.entries.sortedBy {
-                val p1Score = it.key.and(P1_SCORE_MASK).shr(P1_SCORE_SHIFT)
-                val p2Score = it.key.and(P2_SCORE_MASK).shr(P2_SCORE_SHIFT)
-                min(p1Score, p2Score)
-            }
-            val p1todo = sorted.take(n).associateBy({ it.key }, { it.value })
-            val leftover = sorted.drop(n).associateBy({ it.key }, { it.value })
-
-            val p2todo: Map<Int, BigInteger> = buildMap {
-                for ((state, currentCount) in p1todo) {
+            states = buildMap {
+                for ((state, currentCount) in states) {
                     val p1Score = state.and(P1_SCORE_MASK).shr(P1_SCORE_SHIFT)
                     val p2Score = state.and(P2_SCORE_MASK).shr(P2_SCORE_SHIFT)
                     if (p1Score == SCORE_TO_WIN || p2Score == SCORE_TO_WIN) {
@@ -107,8 +96,8 @@ object Day21 : Day() {
                 }
             }
 
-            val result: Map<Int, BigInteger> = buildMap {
-                for ((state, currentCount) in p2todo) {
+            states = buildMap {
+                for ((state, currentCount) in states) {
                     val p1Score = state.and(P1_SCORE_MASK).shr(P1_SCORE_SHIFT)
                     val p2Score = state.and(P2_SCORE_MASK).shr(P2_SCORE_SHIFT)
                     if (p1Score == SCORE_TO_WIN || p2Score == SCORE_TO_WIN) {
@@ -137,10 +126,6 @@ object Day21 : Day() {
                         }
                     }
                 }
-            }
-
-            states = (result.keys + leftover.keys).associateWith { key ->
-                result.getOrDefault(key, BigInteger.ZERO) + leftover.getOrDefault(key, BigInteger.ZERO)
             }
 
             return states.isEmpty()
