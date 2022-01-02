@@ -27,16 +27,20 @@ abstract class Day {
     private fun readInput(name: String) =
         File("src", "$name.txt").readLines()
 
-    abstract inner class Part<Result> constructor(private val testExpected: Result) {
+    abstract inner class Part<Result> constructor(private val testExpected: Result, val skipTest: Boolean = false) {
         abstract fun solve(input: List<String>): Result
 
         fun runTest(id: Int) {
-            runTimed {
-                val testOutput = solve(testInput)
-                check(testOutput == testExpected) {
-                    "Part $id test failed: Expected $testExpected but was $testOutput\t${stopAndFormat()}"
+            if (skipTest) {
+                println("Part $id test ${"skipped".colored(30)}")
+            } else {
+                runTimed {
+                    val testOutput = solve(testInput)
+                    check(testOutput == testExpected) {
+                        "Part $id test failed: Expected $testExpected but was $testOutput\t${stopAndFormat()}"
+                    }
+                    println("Part $id test was ${"successful".colored(32)}\t${stopAndFormat()}")
                 }
-                println("Part $id test was ${"successful".colored(32)}\t${stopAndFormat()}")
             }
         }
 
