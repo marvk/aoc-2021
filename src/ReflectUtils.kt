@@ -7,7 +7,7 @@ fun classForNameOrNull(name: String): Class<*>? {
 }
 
 fun dayClasses() =
-    IntRange(0, 24)
+    IntRange(0, 25)
         .mapNotNull { classForNameOrNull("Day%02d".format(it)) }
 
 fun Class<*>.invoke(name: String) {
