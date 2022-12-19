@@ -1,340 +1,235 @@
-import kotlin.random.Random
+// All this commented out code is here because I used to arrive at the solution ¯\_(ツ)_/¯
+
+// Oh, also did I mention I hate everything about this mess?
 
 object Day24 : Day() {
+    sealed interface StackOp {
+        data class Push(val v: Long) : StackOp
+        data class Pop(val v: Long) : StackOp
+    }
+
+    data class Step(val i1: Int, val i2: Int, val difference: Int)
+
     override val part1 = object : Part<Long>(0, skipTest = true) {
         override fun solve(input: List<String>): Long {
-            val parse = Alu.parse(input)
-            val alus = parse.splitIntoSingleInputAlus()
+            val modifiers = parseModifiers(input)
+            val steps = extracted(modifiers)
 
-            solve(alus)
+            val result = List(14) { 0 }.toMutableList()
 
-            TODO()
-
-//            return alus.joinToString("") { alu ->
-//                (0L..9L)
-//                    .map(::listOf)
-//                    .findLast {
-//                        val evaluate = alu.evaluate(it)
-//                        println(evaluate)
-//                        evaluate[resultRegister] == 0L
-//                    }
-//                    .toString()
-//            }.toLong()
-        }
-    }
-
-    private val zReg = Alu.Register.Named("z")
-
-    fun solve(alus: List<Alu>) {
-        val backtrack = backtrack(alus, listOf(), 0L)
-
-        println(backtrack)
-    }
-
-    private fun backtrack(remainingAlus: List<Alu>, result: List<Int>, expectedResult: Long): List<Int>? {
-        println("result = ${result}")
-        println("expectedResult = ${expectedResult}")
-
-        val depth = result.size
-
-        println("depth = ${depth}")
-        println()
-        println()
-
-        if (remainingAlus.isEmpty()) {
-            return result
-        }
-
-        val alu = remainingAlus.last()
-        val nextRemainingAlus = remainingAlus.dropLast(1)
-
-        (0L..100L).forEach { z ->
-            (1L..9L).reversed().forEach { input ->
-                val zResult = alu.evaluate(listOf(input), mapOf(zReg to z))[zReg]
-
-                if (zResult == expectedResult) {
-                    val backtrack = backtrack(nextRemainingAlus, result + input.toInt(), z)
-
-                    if (backtrack != null) {
-                        return backtrack
-                    }
-                }
-            }
-        }
-
-        return null
-    }
-
-    class Alu(private val instructions: List<Instruction>) {
-        override fun toString() =
-            instructions.joinToString("\n", "Alu[\n", "\n]")
-
-        fun evaluate(input: List<Long>, initialState: Map<Register.Named, Long> = mapOf()) =
-            AluCalculation.evaluate(input, instructions, initialState)
-
-        fun splitIntoSingleInputAlus(): List<Alu> {
-            var current = mutableListOf<Instruction>(instructions.first())
-            val result = mutableListOf<Alu>()
-
-            for (instruction in instructions.drop(1)) {
-                if (instruction is Instruction.Inp) {
-                    result += Alu(current)
-                    current = mutableListOf(instruction)
+            for ((i1, i2, difference) in steps) {
+                if (difference <= 0) {
+                    result[i1] = 9
+                    result[i2] = 9 + difference
                 } else {
-                    current += instruction
-                }
-            }
-            result += Alu(current)
-
-            return result.toList()
-        }
-
-        private class AluCalculation private constructor(input: List<Long>, initialState: Map<Register.Named, Long>) {
-            val input = input.toMutableList()
-
-            val registers: MutableMap<Register.Named, Long> = initialState.toMutableMap()
-
-            fun Register.value(): Long {
-                return when (this) {
-                    is Register.Named -> registers[this] ?: 0
-                    is Register.Number -> this.value
+                    result[i1] = 9 - difference
+                    result[i2] = 9
                 }
             }
 
+            return result.joinToString("").toLong()
 
-            fun readInput() =
-                input.first().also { input.removeFirst() }
+//            for ((i, modifier) in modifiers.withIndex()) {
+//                for (z in (0L..26)) {
+//                    for (i in (1L..9)) {
+//                        iterate2(i, Registers(z), modifier)
+//                    }
+//                }
+//            }
 
-            companion object {
-                fun evaluate(
-                    input: List<Long>,
-                    instruction: List<Instruction>,
-                    initialState: Map<Register.Named, Long> = mapOf(),
-                ) =
-                    AluCalculation(input, initialState)
-                        .apply {
-                            instruction.forEach {
-                                it.run(this)
-                            }
-                        }
-                        .registers
-                        .toMap()
-            }
-        }
 
-        sealed class Instruction(val run: AluCalculation.() -> Unit) {
-            data class Inp(val to: Register.Named) : Instruction({
-                registers[to] = readInput()
-            })
+//            val r = Random(0)
+//
+//            repeat(10000) {
+//                val i = r.nextLong(1, 10)
+//                val registers = Registers(r.nextLong(0, 100000000))
+//
+//                val m = modifiers[r.nextInt(modifiers.size)]
+//
+//                val x = iterate(i, registers, m)
+//                val y = iterate2(i, registers, m)
+//
+//                check(x == y) {
+//                    listOf("Unequal outputs: ", i, registers, m, "", x, y).joinToString("\n")
+//                }
+//            }
+//
+//            println("Ok")
 
-            data class Add(val augend: Register.Named, val addend: Register) : Instruction({
-                eval(augend, addend, Long::plus)
-            })
-
-            data class Mul(val multiplier: Register.Named, val multiplicand: Register) : Instruction({
-                eval(multiplier, multiplicand, Long::times)
-            })
-
-            data class Div(val dividend: Register.Named, val divisor: Register) : Instruction({
-                eval(dividend, divisor, Long::div)
-            })
-
-            data class Mod(val dividend: Register.Named, val divisor: Register) : Instruction({
-                eval(dividend, divisor, Long::mod)
-            })
-
-            data class Eql(val left: Register.Named, val right: Register) : Instruction({
-                eval(left, right) { r1, r2 ->
-                    if (r1 == r2) 1 else 0
-                }
-            })
-
-            companion object {
-                private fun AluCalculation.eval(
-                    register1: Register.Named,
-                    register2: Register,
-                    operation: (Long, Long) -> Long,
-                ) {
-                    registers[register1] = operation(register1.value(), register2.value())
-                }
-
-                fun parse(input: String) =
-                    input.split(" ").let {
-                        val op = it[0]
-                        val r1 by lazy { Register.parseNamed(it[1]) }
-                        val r2 by lazy { Register.parse(it[2]) }
-
-                        when (op) {
-                            "inp" -> Inp(r1)
-                            "add" -> Add(r1, r2)
-                            "mul" -> Mul(r1, r2)
-                            "div" -> Div(r1, r2)
-                            "mod" -> Mod(r1, r2)
-                            "eql" -> Eql(r1, r2)
-                            else -> throw IllegalArgumentException()
-                        }
-                    }
-            }
-        }
-
-        sealed interface Register {
-            data class Number(val value: Long) : Register
-            data class Named(val name: String) : Register
-
-            companion object {
-                fun parse(input: String) =
-                    when (val value = input.toLongOrNull()) {
-                        null -> Named(input)
-                        else -> Number(value)
-                    }
-
-                fun parseNamed(input: String) =
-                    when (val result = parse((input))) {
-                        is Named -> result
-                        else -> throw IllegalArgumentException()
-                    }
-            }
-        }
-
-        companion object {
-            fun parse(input: List<String>) =
-                input.map(Instruction::parse).let(::Alu)
+//            modifiers.forEach(::println)
+//
+//
+//            println(searchRec(0, 7, Registers(0), modifiers, mutableListOf()))
         }
     }
 
-    override val part2: Part<*>
-        get() = TODO("Not yet implemented")
-}
+    override val part2 = object : Part<Long>(0, skipTest = true) {
+        override fun solve(input: List<String>): Long {
+            val modifiers = parseModifiers(input)
+            val steps = extracted(modifiers)
 
-@Suppress("KotlinConstantConditions")
-fun main() {
-//
-//    val input_ = """
-//inp w
-//mul x 0
-//add x z
-//mod x 26
-//div z 1
-//add x 10
-//eql x w
-//eql x 0
-//mul y 0
-//add y 25
-//mul y x
-//add y 1
-//mul z y
-//mul y 0
-//add y w
-//add y 12
-//mul y x
-//add z y
-//    """.trimIndent().lines()
-//
-//    val alu = Day24.Alu.parse(input_)
-//
-//    (1L..9L).map(::listOf).map {
-//        alu.evaluate(it)
-//    }.forEach(::println)
-//
-//    fun readInput() = 1
-//
-//
-//    println("#".repeat(100))
+            val result = List(14) { 0 }.toMutableList()
 
-
-    (-1000L..1000L).forEach { z ->
-        (1..9).forEach { input ->
-            if ((15..23).contains(test(z.toInt(), input)[3])) {
-                println("$z    $input")
+            for ((i1, i2, difference) in steps) {
+                if (difference <= 0) {
+                    result[i1] = 1 - difference
+                    result[i2] = 1
+                } else {
+                    result[i1] = 1
+                    result[i2] = 1 + difference
+                }
             }
 
+            return result.joinToString("").toLong()
         }
     }
 
-    repeat(1000) {
-        val states = generateSequence { Random.nextInt(-100, 100) }.take(4).toList()
-        val input = Random.nextInt(9) + 1
-//        val base = base(states, input)
-        val test = test(states[3], input)
-//        println(base)
-//        println(test)
-//        check(base == test)
-
-        val previousZ = states[3]
-        if (test(previousZ, input)[3] == 24) {
-            println("$previousZ    $input")
+    private fun extracted(modifiers: List<Modifiers>): List<Step> {
+        val map: List<StackOp> = modifiers.map {
+            if (it.sub > 0) {
+                StackOp.Push(it.add)
+            } else {
+                StackOp.Pop(it.sub)
+            }
         }
 
+        val stack = ArrayDeque<Pair<Int, Long>>()
+        val result = mutableListOf<Step>()
+        for ((i, stackOp) in map.withIndex()) {
+            when (stackOp) {
+                is StackOp.Push -> stack.add(i to stackOp.v)
+                is StackOp.Pop -> {
+                    val push = stack.removeLast()
+                    val pop = i to stackOp.v
+
+                    result.add(Step(push.first, pop.first, (pop.second + push.second).toInt()))
+                }
+            }
+        }
+        return result
     }
 
-//
-//    var w = 0
-//    var x = 0
-//    var y = 0
-//    var z = 0
-//    fun p() {
-//        println("{Named(name=w)=${w}, Named(name=x)=${x}, Named(name=z)=${z}, Named(name=y)=${y}}")
-//    }
-//    w = readInput()
-//    x *= 0
-//    x += z
-//    x %= 26
-//    z /= 1
-//    x += 10
-//    x = if (x == w) 1 else 0
-//    x = if (x == 0) 1 else 0
-//    y *= 0
-//    y += 25
-//    y *= x
-//    y += 1
-//    z *= y
-//    y *= 0
-//    y += w
-//    y += 12
-//    y *= x
-//    z += y
+    private fun parseModifiers(input: List<String>): List<Modifiers> {
+        val chunked = input.chunked(18)
+        val different = mutableSetOf<Int>()
+
+        for (c1 in chunked) {
+            for (c2 in chunked) {
+                for ((i, pair) in c1.zip(c2).withIndex()) {
+                    if (pair.first != pair.second) {
+                        different += i
+                    }
+                }
+            }
+        }
+
+        return chunked.map { alu -> alu.filterIndexed { index, _ -> different.contains(index) }.map { it.split(" ").last().toLong(10) }.let { Modifiers(it[0], it[1], it[2]) } }
+    }
+
+    data class Registers(val z: Long)
+    data class Modifiers(val unused: Long, val sub: Long, val add: Long)
+
+    fun iterate2(input: Long, r: Registers, m: Modifiers): Registers {
+        check(input in 1..9)
+
+        val check = m.sub
+        val offset = m.add
+
+        var z = r.z
+
+        val cond = (z % 26) + check != input
+        if (check <= 0) {
+            z /= 26
+        }
+        if (cond) {
+            z *= 26
+            z += input + offset
+        }
+
+        return Registers(z)
+    }
 
 
+    fun iterate(i: Long, r: Registers, m: Modifiers): Registers {
+        check(i in 1..9)
+
+        val a = m.unused
+        val b = m.sub
+        val c = m.add
+
+        var w = 0L
+        var x = 0L
+        var y = 0L
+        var z = r.z
+
+        w = i
+        x = x * 0
+        x = x + z
+        x = x % 26
+        z = z / a
+        x = x + b
+        x = if (x == w) 1 else 0
+        x = if (x == 0L) 1 else 0
+        y = y * 0
+        y = y + 25
+        y = y * x
+        y = y + 1
+        z = z * y
+        y = y * 0
+        y = y + w
+        y = y + c
+        y = y * x
+        z = z + y
+
+        return Registers(z)
+    }
 }
 
-fun test(previousZ: Int, input: Int): List<Int> {
-    val v1 = 26
-    val v2 = -4
-    val v3 = 4
+/*
 
-//    val v1 = 26
-//    val v2 = -14
-//    val v3 = 13
+But in reality I handsolved it...
+
+       I   A (DIV)   B (CHECK)   C (OFFSET)
+
+       0         1          10           12     push i[ 0] + 12   ────┐
+       1         1          12            7     push i[ 1] +  7   ───┐│
+       2         1          10            8     push i[ 2] +  8   ──┐││
+       3         1          12            8     push i[ 3] +  8   ─┐│││
+       4         1          11           15     push i[ 4] + 15   ┐││││
+       5        26         -16           12   pop - 16 == i[ 5]   ┘││││
+       6         1          10            8     push i[ 6] +  8   ┐││││
+       7        26         -11           13   pop - 11 == i[ 7]   ┘││││
+       8        26         -13            3   pop - 13 == i[ 8]   ─┘│││
+       9         1          13           13     push i[ 9] + 13   ┐ │││
+      10        26          -8            3   pop -  8 == i[10]   ┘ │││
+      11        26          -1            9   pop -  1 == i[11]   ──┘││
+      12        26          -4            4   pop -  4 == i[12]   ───┘│
+      13        26         -14           13   pop - 14 == i[13]   ────┘
 
 
-    val x = if (input != (previousZ % 26) + v2) 1 else 0
-    val z = ((previousZ / v1) * ((25 * x) + 1)) + (input + v3) * x
+    i[ 0] + 12 - 14 == i[13]
+    i[ 1] +  7 -  4 == i[12]
+    i[ 2] +  8 -  1 == i[11]
+    i[ 3] +  8 - 13 == i[ 8]
+    i[ 4] + 15 - 16 == i[ 5]
+    i[ 6] +  8 - 11 == i[ 7]
+    i[ 9] + 13 -  8 == i[10]
 
-    return listOf(0, x, 0, z)
-}
+    i[ 0] -  2 == i[13] -> (9, 7)
+    i[ 1] +  3 == i[12] -> (6, 9)
+    i[ 2] +  7 == i[11] -> (2, 9)
+    i[ 3] -  5 == i[ 8] -> (9, 4)
+    i[ 4] -  1 == i[ 5] -> (9, 8)
+    i[ 6] -  3 == i[ 7] -> (9, 6)
+    i[ 9] +  5 == i[10] -> (4, 9)
 
-fun base(states: List<Int>, input: Int): List<Int> {
-    var w = states[0]
-    var x = states[1]
-    var y = states[2]
-    var z = states[3]
-    w = input
-    x *= 0
-    x += z
-    x %= 26
-    z /= 1
-    x += 10
-    x = if (x == w) 1 else 0
-    x = if (x == 0) 1 else 0
-    y *= 0
-    y += 25
-    y *= x
-    y += 1
-    z *= y
-    y *= 0
-    y += w
-    y += 12
-    y *= x
-    z += y
-    return listOf(0, x, 0, z)
-}
+
+    i[ 0] -  2 == i[13] -> (3, 1)
+    i[ 1] +  3 == i[12] -> (1, 4)
+    i[ 2] +  7 == i[11] -> (1, 8)
+    i[ 3] -  5 == i[ 8] -> (6, 1)
+    i[ 4] -  1 == i[ 5] -> (2, 1)
+    i[ 6] -  3 == i[ 7] -> (4, 1)
+    i[ 9] +  5 == i[10] -> (1, 6)
+
+ */
